@@ -1753,5 +1753,5 @@ while True:
         check_orders()  # Checks SL orders and sets target, should be called every 10 seconds. check logs
 
     else:
-        iLog(f"Non Market hours {cur_HHMM} Exiting Algo...")
-        sys.exit()
+        iLog(f"Non Market hours {cur_HHMM} , waiting for market hours... Press CTRL+C to abort.")
+        sleep(10)
