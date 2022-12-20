@@ -885,14 +885,17 @@ def check_MTM_Limit():
     ####### MTM needs manual calculation as ab provides wrong numbers
     # Get position and mtm
     try:    # Get netwise postions (MTM)
-        pos = alice.get_netwise_positions()
-        df_pos = pd.DataFrame(alice.get_netwise_positions())
-        if df_pos.empty:
-            pass
-        else:
-            mtm = sum(pd.to_numeric(df_pos.MtoM.str.replace(",","")))
-            pos_nifty = sum(pd.to_numeric(df_pos[df_pos.Symbol=='NIFTY'].Netqty))
-            pos_bank = sum(pd.to_numeric(df_pos[df_pos.Symbol=='BANKNIFTY'].Netqty))
+        # pos = alice.get_netwise_positions()
+        pos = alice.get_netwise_positions() # Returns list of dicts if position is there else returns dict {'emsg': 'No Data', 'stat': 'Not_Ok'}
+        if type(pos)==list:
+            df_pos = pd.DataFrame(pos)
+            # print("df_pos=",df_pos)
+            if df_pos.empty:
+                 print("check_MTM_Limit(): Unable to fetch position", flush = True)
+            else:
+                mtm = sum(pd.to_numeric(df_pos.MtoM.str.replace(",","")))
+                pos_nifty = sum(pd.to_numeric(df_pos[df_pos.Symbol=='NIFTY'].Netqty))
+                pos_bank = sum(pd.to_numeric(df_pos[df_pos.Symbol=='BANKNIFTY'].Netqty))
 
         # if type(pos)==list:
             # print("pos:")
@@ -1050,7 +1053,7 @@ def set_config_value(section,key,value):
 def check_trade_time_zone(bank_nifty="NIFTY"):
     result = False
 
-    cur_time = int(datetime.datetime.now().strftime("%H%M"))
+    cur_time = int(datetime.now().strftime("%H%M"))
 
     # if bank_nifty=="CRUDE" and (cur_time > curde_trade_start_time and cur_time < curde_trade_end_time) :
     #     result = True
@@ -1153,24 +1156,27 @@ def check_orders():
     #1 Remove completed orders/keep only pending orders from the SL orders dict
     try:
         # orders = alice.get_order_history('')['data']['pending_orders']
-        df_orders = pd.DataFrame(alice.get_order_history(''))
-        # print("df_orders1:\n",df_orders)
-        df_orders = df_orders[df_orders.Status=='open'].ExchOrdID 
-        
-        # print("df_orders2:\n",df_orders)
-        # print("dict_sl_orders:\n",dict_sl_orders)
+        orders = alice.get_order_history('')
+        if type(orders)==list:
+            df_orders = pd.DataFrame(orders)
+            # print("df_orders=",df_orders)
 
-        if not df_orders.empty:
-            for key, value in dict_sl_orders.items():
-                order_found = False
-                if key in df_orders.ExchOrdID.values:
-                    order_found = True
-                    break
-                
-                # remove the order from sl dict which is not pending
-                if not order_found:
-                    dict_sl_orders.pop(key)
-                    iLog(f"In check_orders(): Removed order {key} from dict_sl_orders")
+            df_orders = df_orders[df_orders.Status=='open'].ExchOrdID 
+            
+            # print("df_orders2:\n",df_orders)
+            # print("dict_sl_orders:\n",dict_sl_orders)
+
+            if not df_orders.empty:
+                for key, value in dict_sl_orders.items():
+                    order_found = False
+                    if key in df_orders.ExchOrdID.values:
+                        order_found = True
+                        break
+                    
+                    # remove the order from sl dict which is not pending
+                    if not order_found:
+                        dict_sl_orders.pop(key)
+                        iLog(f"In check_orders(): Removed order {key} from dict_sl_orders")
 
         # if orders:
         #     # iLog(f"check_orders():orders={orders}\n dict_sl_orders={dict_sl_orders}")   #To be commented later
@@ -1524,6 +1530,9 @@ strMsg = "Starting tick processing."
 iLog(strMsg,sendTeleMsg=True)
 
 
+# buy_bank_options("BANK_CE")
+# exit
+
 
 # Process tick data/indicators and generate buy/sell and execute orders
 while True:
@@ -1755,3 +1764,7 @@ while True:
     else:
         iLog(f"Non Market hours {cur_HHMM} , waiting for market hours... Press CTRL+C to abort.")
         sleep(10)
+
+
+
+# 1
