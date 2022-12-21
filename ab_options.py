@@ -128,7 +128,7 @@ from pya3 import *
 if not os.path.exists("./log") : os.makedirs("./log")
 
 # Enable logging to file 
-# sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.now().strftime("%Y%m%d") +".log" , "a")
+sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.now().strftime("%Y%m%d") +".log" , "a")
 
 
 
