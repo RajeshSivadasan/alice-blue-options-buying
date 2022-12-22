@@ -42,6 +42,7 @@
 #v7.3.7 Reinstated back the reversed buy/sell logic
 #v7.3.8 new login process implemented
 #v7.4.0 New API V2 implemented
+#v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
 
 # get_opt_ltp_wait_seconds
 
@@ -127,9 +128,6 @@ from pya3 import *
 # If log folder is not present create it
 if not os.path.exists("./log") : os.makedirs("./log")
 
-# Enable logging to file 
-sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.now().strftime("%Y%m%d") +".log" , "a")
-
 
 ###################################
 #      Logging method
@@ -162,6 +160,11 @@ INI_FILE = __file__[:-3]+".ini"              # Set .ini file name used for stori
 # Load parameters from the config file
 cfg = configparser.ConfigParser()
 cfg.read(INI_FILE)
+
+# Enable logging to file based on the settings 
+log_to_file = int(cfg.get("tokens", "log_to_file"))
+if log_to_file : sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.now().strftime("%Y%m%d") +".log" , "a") 
+
 
 # Set user profile; Access token and other user specific info from .ini will be pulled from this section
 # ab_lib.strChatID = cfg.get("tokens", "chat_id")
@@ -975,6 +978,7 @@ def get_trade_price_options(bank_nifty):
         get_option_tokens("NIFTY")
     elif bank_nifty == "BANK_CE" or bank_nifty == "BANK_PE":
         get_option_tokens("BANK")
+        sl = bank_sl
 
     # 1. Set default limit price, below offset can be parameterised
     if bank_nifty == "NIFTY_CE" :
@@ -1770,4 +1774,4 @@ while True:
 
 
 
-# 1
+# 2
