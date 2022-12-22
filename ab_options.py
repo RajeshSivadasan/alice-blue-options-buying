@@ -131,7 +131,6 @@ if not os.path.exists("./log") : os.makedirs("./log")
 sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.now().strftime("%Y%m%d") +".log" , "a")
 
 
-
 ###################################
 #      Logging method
 ###################################
@@ -159,7 +158,7 @@ def iLog(strLogText,LogType=1,sendTeleMsg=False):
 supertrend_period = 7 #5 #7 #30 NOte: This changes the ATR period also
 supertrend_multiplier = 2.5 #1.5 #3
 
-INI_FILE = "ab_options.ini"              # Set .ini file name used for storing config info.
+INI_FILE = __file__[:-3]+".ini"              # Set .ini file name used for storing config info.
 # Load parameters from the config file
 cfg = configparser.ConfigParser()
 cfg.read(INI_FILE)
@@ -171,6 +170,8 @@ strChatID = cfg.get("tokens", "chat_id")
 strBotToken = cfg.get("tokens", "options_bot_token")    #Bot include "bot" prefix in the token
 strMsg = "Initialising " + __file__
 iLog(strMsg,sendTeleMsg=True)
+
+
 
 
 # crontabed this at 9.00 am instead of 8.59 
@@ -1529,8 +1530,10 @@ get_option_tokens("ALL")
 strMsg = "Starting tick processing."
 iLog(strMsg,sendTeleMsg=True)
 
-
+# Test
+#---------------------------
 # buy_bank_options("BANK_CE")
+# check_trade_time_zone()
 # exit
 
 
