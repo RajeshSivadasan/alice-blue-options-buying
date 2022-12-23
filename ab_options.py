@@ -43,6 +43,7 @@
 #v7.3.8 new login process implemented
 #v7.4.0 New API V2 implemented
 #v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
+#v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here. 
 
 # get_opt_ltp_wait_seconds
 
@@ -1003,43 +1004,17 @@ def trade_limit_reached(bank_nifty="NIFTY"):
      Dont process the Buy/Sell order if returns true
      bank_nifty=CRUDE/NIFTY '''
     
-    trades_cnt = 0  # Number of trades, needs different formula in case of nifty / bank
-    buy_cnt = 0
-    sell_cnt = 0
-
     try:
         trade_book = alice.get_trade_book()
-        if len(trade_book['data']) == 0 :
-            return False        # No Trades
+        if type(trade_book)==list and len(trade_book) >= no_of_trades_limit :
+            return True
         else:
-            trades = trade_book['data']['trades'] #Get all trades
-    
+            return False
+           
     except Exception as ex:
         iLog("trade_limit_reached(): Exception="+ str(ex),3)
         return True     # To be safe in case of exception
 
-    if not trades:
-        iLog("trade_limit_reached(): No Trades found for "+ str(bank_nifty))
-        return False        # No trades, hence go ahead
-
-    for c_trade in trades:
-        if bank_nifty == c_trade['trading_symbol'][:5]:
-            if c_trade['transaction_type'] == "BUY" :
-                buy_cnt = buy_cnt + 1
-            elif c_trade['transaction_type'] == "SELL" :
-                 sell_cnt = sell_cnt + 1
-
-    iLog(f"trade_limit_reached(): buy_cnt={buy_cnt}, sell_cnt={sell_cnt}")            
-    
-    if buy_cnt > sell_cnt:
-        trades_cnt = buy_cnt
-    else:
-        trades_cnt = sell_cnt
-
-    if trades_cnt >= no_of_trades_limit:
-        return True
-    else:
-        return False
 
 def set_config_value(section,key,value):
     '''Set the config file (.ini) value. Applicable for setting only one parameter value. 
