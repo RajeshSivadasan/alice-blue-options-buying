@@ -43,7 +43,8 @@
 #v7.3.8 new login process implemented
 #v7.4.0 New API V2 implemented
 #v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
-#v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here. 
+#v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here.
+#v7.4.3 Made changes in the strike selection logic Strike = ATM  + Offset eg for CALL ITM 200pts = ATM - 200 (offset = -200), OTM 200pts = ATM + 200 (offset = 200); For PUT ITM 200pts = ATM + 200 
 
 # get_opt_ltp_wait_seconds
 
@@ -113,13 +114,12 @@
 
 # Release notes for ab_options.py
 
-
-import numpy as np
 import sys
-from datetime import datetime, date, timedelta
 import threading
-import configparser
 from pya3 import *
+import numpy as np
+import configparser
+from datetime import datetime, date, timedelta
 
 # Reduce position to cut loss if price is going against the trade, can close BO1
 
@@ -363,7 +363,7 @@ def savedata(flgUpdateConfigFile=True):
     iLog("In savedata(). Exporting dataframes to .csv files.",6)    # Log as activity
 
     try:
-        ts_ext = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".csv"
+        ts_ext = datetime.now().strftime("%Y%m%d_%H%M%S") + ".csv"
         if enable_NFO_data:
             file_nifty = "./data/NIFTY_OPT_" + ts_ext 
             file_nifty_med = "./data/NIFTY_OPT_MED_" + ts_ext
@@ -846,15 +846,14 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
     if opt_index == "ALL":
         # If this proc is called in each interval, Check for order open time and leg indicator is blank for main order
         if ord_open_time > 0 :
-            today = datetime.datetime.now()
-            
+            today = datetime.now()
             for c_order in lst_open_orders:
-                diff =  today - datetime.datetime.fromtimestamp(c_order['order_entry_time'])
+                diff =  today - datetime.strptime(c_order['OrderedTime'], '%d/%m/%Y %H:%M:%S')
                 # print("diff.total_seconds()=",diff.total_seconds(), "c_order['leg_order_indicator']=",c_order['leg_order_indicator'], flush=True)
-                
-                if (c_order['leg_order_indicator'] == '') and  (diff.total_seconds() / 60) > ord_open_time :
-                    iLog("close_all_orders(): Cancelling order due to order open limit time crossed for Ord. no. : " + c_order['oms_order_id'],sendTeleMsg=True)
-                    alice.cancel_order(c_order['oms_order_id'])
+                # See if its not a BO/CO and having leg order
+                if (c_order['SyomOrderId'] == '') and  (diff.total_seconds() / 60) > ord_open_time :
+                    iLog("close_all_orders(): Cancelling order due to order open limit time crossed for Ord. no. : " + c_order['Nstordno'],sendTeleMsg=True)
+                    alice.cancel_order(c_order['Nstordno'])
 
         else:
             #Cancel all open orders
@@ -863,14 +862,14 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
     else:
         for c_order in lst_open_orders:
             #if c_order['leg_order_indicator']=='' then its actual pending order not leg order
-            if opt_index == c_order['trading_symbol'][:5]:
+            if opt_index == c_order['Trsym'][:5]:
                 if buy_sell == "ALL" :
-                    iLog("close_all_orders(): Cancelling order "+c_order['oms_order_id'])
-                    alice.cancel_order(c_order['oms_order_id'])    
+                    iLog("close_all_orders(): Cancelling order "+c_order['Nstordno'])
+                    alice.cancel_order(c_order['Nstordno'])    
 
-                elif buy_sell == c_order['transaction_type']:
-                    iLog("close_all_orders(): Cancelling order "+c_order['oms_order_id'])
-                    alice.cancel_order(c_order['oms_order_id'])
+                elif buy_sell[0] == c_order['Trantype']:
+                    iLog("close_all_orders(): Cancelling order "+c_order['Nstordno'])
+                    alice.cancel_order(c_order['Nstordno'])
 
 
     iLog("close_all_orders(): opt_index={},buy_sell={},ord_open_time={}".format(opt_index,buy_sell,ord_open_time)) #6 = Activity/Task done
@@ -1015,7 +1014,6 @@ def trade_limit_reached(bank_nifty="NIFTY"):
         iLog("trade_limit_reached(): Exception="+ str(ex),3)
         return True     # To be safe in case of exception
 
-
 def set_config_value(section,key,value):
     '''Set the config file (.ini) value. Applicable for setting only one parameter value. 
     All parameters are string
@@ -1064,7 +1062,7 @@ def get_option_tokens(nifty_bank="ALL"):
             nifty_atm = round(int(nifty50),-2)
             iLog(f"get_option_tokens(): nifty_atm={nifty_atm}")
 
-            strike_ce = float(nifty_atm - nifty_strike_ce_offset)   #ITM Options
+            strike_ce = float(nifty_atm + nifty_strike_ce_offset)   #ITM Options
             strike_pe = float(nifty_atm + nifty_strike_pe_offset)
 
 
@@ -1094,7 +1092,7 @@ def get_option_tokens(nifty_bank="ALL"):
             bank_atm = round(int(bank50),-2)
             iLog(f"get_option_tokens(): bank_atm={bank_atm}")
 
-            strike_ce = float(bank_atm - bank_strike_ce_offset) #ITM Options
+            strike_ce = float(bank_atm + bank_strike_ce_offset) #ITM Options
             strike_pe = float(bank_atm + bank_strike_pe_offset)
 
             # print(strike_ce,expiry_date.isoformat())
