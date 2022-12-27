@@ -45,6 +45,7 @@
 #v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
 #v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here.
 #v7.4.3 Made changes in the strike selection logic Strike = ATM  + Offset eg for CALL ITM 200pts = ATM - 200 (offset = -200), OTM 200pts = ATM + 200 (offset = 200); For PUT ITM 200pts = ATM + 200 
+#v7.4.4 Fixed type object 'datetime.time' has no attribute 'sleep' at line 439
 
 # get_opt_ltp_wait_seconds
 
@@ -436,13 +437,13 @@ def place_sl_order(main_order_id, nifty_bank, ins_opt):
             iLog(f"place_sl_order(): Exception={ex}")
         
         # if order_executed : break   #break while loop
-        time.sleep(2)
+        sleep(2)
         wait_time = wait_time - 1
 
 
 
     if order_executed:
-        time.sleep(2)  #As order might not be completely filled / alice blue takes time to recognise margin.
+        sleep(2)  #As order might not be completely filled / alice blue takes time to recognise margin.
         
         if nifty_bank == "NIFTY": 
             # ins_opt =  ins_bank_opt
