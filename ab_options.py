@@ -46,6 +46,7 @@
 #v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here.
 #v7.4.3 Made changes in the strike selection logic Strike = ATM  + Offset eg for CALL ITM 200pts = ATM - 200 (offset = -200), OTM 200pts = ATM + 200 (offset = 200); For PUT ITM 200pts = ATM + 200 
 #v7.4.4 Fixed type object 'datetime.time' has no attribute 'sleep' at line 439
+#v7.4.5 Fixed KeyError: 'Emsg'
 
 # get_opt_ltp_wait_seconds
 
@@ -744,7 +745,7 @@ def buy_bank_options(strMsg):
                 t.start()
 
             else:
-                strMsg = strMsg + ' buy_bank(): MIS Order Failed.' + order['Emsg']
+                strMsg = strMsg + ' buy_bank(): MIS Order Failed.' + order['emsg']
                 iLog(strMsg,sendTeleMsg=True)
 
         # BO option may not work as usually BO is disabled in alice blue for options, hence not updating the below code for BO
@@ -755,7 +756,7 @@ def buy_bank_options(strMsg):
                 # buy_order1_bank = order['data']['oms_order_id']
                 strMsg = strMsg + " 1st BO order_id=" + order['NOrdNo']
             else:
-                strMsg = strMsg + ' buy_bank() 1st BO Failed.' + order['Emsg']
+                strMsg = strMsg + ' buy_bank() 1st BO Failed.' + order['emsg']
 
             #---- Second Bracket order for open target
             if enableBO2_bank:
@@ -766,7 +767,7 @@ def buy_bank_options(strMsg):
                     # buy_order2_bank = order['data']['oms_order_id']
                     strMsg = strMsg + " 2nd BO order_id=" + order['NOrdNo']
                 else:
-                    strMsg=strMsg + ' buy_bank() 2nd BO Failed.' + order['Emsg']
+                    strMsg=strMsg + ' buy_bank() 2nd BO Failed.' + order['emsg']
 
             #---- Third Bracket order for open target
             if enableBO3_bank:  
@@ -777,7 +778,7 @@ def buy_bank_options(strMsg):
                     # buy_order3_bank = order['data']['oms_order_id']
                     strMsg = strMsg + " 3rd BO order_id=" + order['NOrdNo']
                 else:
-                    strMsg=strMsg + ' buy_bank() 3rd BO Failed.' + order['Emsg']
+                    strMsg=strMsg + ' buy_bank() 3rd BO Failed.' + order['emsg']
 
             iLog(strMsg,sendTeleMsg=True)
 
@@ -834,7 +835,7 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
         lst_open_orders = [ord for ord in alice.get_order_history('') if ord['Status']=='open']
         if not lst_open_orders:
             # print(datetime.datetime.now(),"In close_all_orders(). No Pending Orders found.",opt_index,flush=True)
-            iLog("close_all_orders(): No Pending Orders found for "+ str(opt_index))
+            iLog(f"close_all_orders(): No Pending Orders found for {opt_index}")
             return    
         # Else is captured below exception
         
@@ -872,8 +873,7 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
                     iLog("close_all_orders(): Cancelling order "+c_order['Nstordno'])
                     alice.cancel_order(c_order['Nstordno'])
 
-
-    iLog("close_all_orders(): opt_index={},buy_sell={},ord_open_time={}".format(opt_index,buy_sell,ord_open_time)) #6 = Activity/Task done
+    iLog(f"close_all_orders(): opt_index={opt_index}, buy_sell={buy_sell}, ord_open_time={ord_open_time}") #6 = Activity/Task done
 
 def check_MTM_Limit():
     ''' Checks and returns the current MTM and sets the trading flag based on the limit specified in the 
