@@ -1,67 +1,28 @@
 # pylint: disable=unused-wildcard-import
-# Refer to ab.py verison comments for previous changes
-#============= ab_options.py created from here ============= 
-# Used v6.9.2 as the base to start the options 
-# v6.9.2 Implemented try block in subscribe_ins()
-# v7.0  Revamp of the program for Options Trading (Nifty/BankNifty)
-#   Replace Nifty futures with Nifty 50 Index. Use it for option trading
-#   First phase we will implement NIfty then Banknifty
-#v7.0.1 Fixed expiry date holiday issue
-#v7.0.2 Fixed place_order_BO():Optional parameter price not of type float
-#v7.0.3 Removed RSI range and momentum check, print change 
-#v7.0.4 fixed ins_nifty_opt incorrect token assignment
-#v7.0.5 fixed issue with strMsg assignment in buy_nifty_options()
-#v7.0.6 fixed indentation of program exit code at 3.30 pm
-#v7.0.7 reworked for MIS support. Removed unwanted code 
-#v7.1.0 Added banknifty support 
-#v7.1.4 Banknifty support updates, order management, threading
-#v7.1.5 check_orders() for order management. can implement trailing SL concept as well.
-#v7.1.6-7 buy_nifty_options() MIS SL order
-#v7.1.8-9 Fixed place_sl_order() main_order_id bug, added debug comments
-#v7.2.0 Fixed place_sl_order() bug - Trading Symbol Doesn't exist for the exchange
-#v7.2.1 check_orders() - TSL update and comments, logging
-#v7.2.2 Workaround for modify_order() missing 1 required positional argument: 'quantity'. Need to update the code if the original package is fixed by the author 
-#v7.2.3 TSL logic updates in check_orders() and place_sl_order()
-#v7.2.4 Removed unwanted comments, updated 
-#v7.2.5 TSL logic updated in check_orders() and minor changes in place_sl_order()
-#v7.2.6 fixed UnboundLocalError: local variable 'bank_bo1_qty' referenced before assignment
-#v7.2.7 check_orders(). Passed trigger price in the modify_order as it was getting triggered immediately
-#v7.2.8 Limit price constraint parameterised, updated nifty_buy_opitons. Now nifty options with BO can be enabled
-#v7.2.9 Minor logging in procedures, updated TSL logic to include SL
-#v7.3.0 Major changes done: ST Medium removed from strategy, purely based on ST low (3min). Signal was comming too late.
-#v7.3.1 Bugs, ST_Med related fields removed
-#v7.3.2 Implemented nifty_limit_price_offset and bank_limit_price_offset; Removed bo_level parameters as they are not applicable for options 
-#v7.3.3 check_orders(): Bug->Changed limit order to SL limit for TSL updation. TSL based on banknifty/nifty
-#v7.3.4 place_sl_order(): Order didn't go through as the price moved quickly, but it came back. 
-# But the order got rejected due to less funds. Handled reject orders and increased sl_wait_timeout in .ini to 100 i.e 200 seconds
-#v7.3.5 BUG:trade_bank parameter was not getting updated at eod due to incorrect passing of section/parameter
-# Reversed the logic of buy and sell. i.e when buy signal is recevied sell is done and vice a versa
-#v7.3.6 Added symbol in the logging, moved trade_nfo condition after logging
-# Although positive trades were getting executed but it was not rewarding. need analysis. Missing out on trending trades.
-#Need to check on short duration candles i.e 1 min
-#v7.3.7 Reinstated back the reversed buy/sell logic
-#v7.3.8 new login process implemented
-#v7.4.0 New API V2 implemented
+# Refer to https://github.com/RajeshSivadasan/alice-blue-futures/blob/main/ab.py verison comments for previous changes
+#v7.3.8 New AliceBlue login process implemented
+#v7.4.0 New AliceBlue API V2 implemented
 #v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
 #v7.4.2 Fixed trade_limit_reached() generating issue due to the new API update miss here.
 #v7.4.3 Made changes in the strike selection logic Strike = ATM  + Offset eg for CALL ITM 200pts = ATM - 200 (offset = -200), OTM 200pts = ATM + 200 (offset = 200); For PUT ITM 200pts = ATM + 200 
 #v7.4.4 Fixed type object 'datetime.time' has no attribute 'sleep' at line 439
 #v7.4.5 Fixed KeyError: 'Emsg'
 #v7.4.6 Added feature to save and read previous day data to maintain continuity in the supertrend indicator otherwise we have to wait for 6 candles to complete for the indicator value generation 
-# get_opt_ltp_wait_seconds
+
+
 
 ###### STRATEGY / TRADE PLAN #####
-# Trading Style : Intraday
-# Trade Timing : Morning 9:15 to 10:40 AM , After noon 1.30 PM to 3.30 PM 
-# Trading Capital : Rs 20,000
-# Trading Qty : 1 Lot for short goal, 1 lot long goal
+# Trading Style     : Intraday
+# Trade Timing      : Morning 9:15 to 10:40 AM , After noon 1.30 PM to 3.30 PM (Can be set in the parameter)
+# Trading Capital   : Rs 20,000
+# Trading Qty       : 1 Lot for short goal, 1 lot long goal
 # Premarket Routine : TBD
-# Trading Goals : Nifty(Short Goal = 20 Points, Long Goal = 200 pts with TSL)
-# Time Frame : 3 min
-# Entry Criteria : Nifty50 Supertrend buy(CE)/Sell(PE)
-# Exit Criteria : BO Set for Target/SL, Exit CE position on Supertrend Sell/PE trigger, exit PE position the other way  
-# Risk Capacity : Taken care by BO
-# Order Management : BO orders else MIS/Normal(may need additional exit criteria)
+# Trading Goals     : Nifty(Short Goal = 20 Points, Long Goal = 200 pts with TSL)
+# Time Frame        : 3 min Default (Can be changed through parameter)
+# Entry Criteria    : Nifty50 Supertrend buy(CE)/Sell(PE)
+# Exit Criteria     : BO Set for Target/SL, Exit CE position on Supertrend Sell/PE trigger, exit PE position the other way  
+# Risk Capacity     : Taken care by BO
+# Order Management  : BO orders else MIS/Normal(may need additional exit criteria)
 
 # Supertrend Buy signal will trigger ATM CE buy
 # Supertrend Sell signal will trigger ATM PE buy 
@@ -69,12 +30,6 @@
 # For option price, ATM ltp CE and ATM ltp PE to be subscribed dynamically and stored in global variables
 # Nifty option order trigger to be based on Nifty50 Index movement hence nifty50 dataframe required 
 # BankNifty option order trigger to be based on BankNifty Index movement hence banknifty dataframe required to be maintained seperately
-
-# bg process
-# 2020-09-01 09:59:18.152555|1|chat_id=670221062 text=Cmd ls
-# exception= list index out of range
-# 2020-09-01 10:00:18.565516|1|chat_id= text=Cmd ls
-# exception= list index out of range
 
 # Open issues/tasks:
 # Check use of float in place_order_BO() as it is working in ab.py without it
@@ -91,7 +46,7 @@
 # If ATR > 10 or something activate BO3
 # In ST up/down if ST_MEDIUM is down/Up - If high momentum (check rate of change) chances are it will break medium SL 
 # Look at 3 min to 6 min crossover points , compare ST values of low and medium for possible override
-# Retun/Exit function after Postion check in buy/sell function fails 
+# Return/Exit function after Postion check in buy/sell function fails 
 # Look at df_nifty.STX.values; Can we use tail to get last n values in the list
 # Can have few tasks to be taken care/check each min like MTM/Tradefalg check/set. This is apart from interval
 # Delay of 146 secs, 57 secs, 15 secs etc seen. Check and Need to handle 
@@ -183,16 +138,16 @@ spassword = cfg.get("tokens", "pwd")
 api_key = cfg.get("tokens", "api_key")
 
 # Below Realtime variables are loaded using get_realtime_config()
-enableBO2_nifty = int(cfg.get("realtime", "enableBO2_nifty"))   # True = 1 (or non zero) False=0 
-enableBO3_nifty = int(cfg.get("realtime", "enableBO3_nifty"))   # True = 1 (or non zero) False=0 
+enableBO2_nifty = int(cfg.get("realtime", "enableBO2_nifty"))       # True = 1 (or non zero) False=0 
+enableBO3_nifty = int(cfg.get("realtime", "enableBO3_nifty"))       # True = 1 (or non zero) False=0 
 enableBO2_bank = int(cfg.get("realtime", "enableBO2_bank"))         # BankNifty ;True = 1 (or non zero) False=0 
 enableBO3_bank = int(cfg.get("realtime", "enableBO3_bank"))         # BankNifty ;True = 1 (or non zero) False=0 
-trade_nfo = int(cfg.get("realtime", "trade_nfo"))                 # Trade Nifty options. True = 1 (or non zero) False=0
+trade_nfo = int(cfg.get("realtime", "trade_nfo"))                   # Trade Nifty options. True = 1 (or non zero) False=0
 trade_bank = int(cfg.get("realtime", "trade_bank"))                 # Trade Bank Nifty options. True = 1 (or non zero) False=0
-nifty_sl = float(cfg.get("realtime", "nifty_sl"))               #15.0 ?
-bank_sl = float(cfg.get("realtime", "bank_sl"))                     #30.0 ?
-mtm_sl = int(cfg.get("realtime", "mtm_sl"))                     #amount below which program exit all positions 
-mtm_target = int(cfg.get("realtime", "mtm_target"))             #amount above which program exit all positions and not take new positions
+nifty_sl = float(cfg.get("realtime", "nifty_sl"))                   # 15.0 ?
+bank_sl = float(cfg.get("realtime", "bank_sl"))                     # 30.0 ?
+mtm_sl = int(cfg.get("realtime", "mtm_sl"))                         # Overall Stop Loss Amount below which program exits all positions 
+mtm_target = int(cfg.get("realtime", "mtm_target"))                 # Overall Profit Target Amount above which program exits all positions and doses not take any new positions
 nifty_bo1_qty = int(cfg.get("realtime", "nifty_bo1_qty"))
 nifty_bo2_qty = int(cfg.get("realtime", "nifty_bo2_qty"))
 nifty_bo3_qty = int(cfg.get("realtime", "nifty_bo3_qty"))
@@ -230,19 +185,13 @@ nifty_sqoff_time = int(cfg.get("info", "nifty_sqoff_time")) #1512 time after whi
 nifty_tsl = int(cfg.get("info", "nifty_tsl"))   #Trailing Stop Loss for Nifty
 bank_tsl = int(cfg.get("info", "bank_tsl"))     #Trailing Stop Loss for BankNifty
 
-rsi_buy_param = int(cfg.get("info", "rsi_buy_param"))   #may need exchange/indicator specific; ML on this?
-rsi_sell_param = int(cfg.get("info", "rsi_sell_param"))
-premarket_advance = int(cfg.get("info", "premarket_advance"))
-premarket_decline = int(cfg.get("info", "premarket_decline"))
-premarket_flag = int(cfg.get("info", "premarket_flag"))          # whether premarket trade enabled  or not 1=yes
-nifty_last_close = float(cfg.get("info", "nifty_last_close"))
 
-
-# Below 2 Are Base Flag For nifty /bank nifty trading_which is used to reset daily(realtime) flags(trade_nfo,trade_bank) as 
+# Below 2 are base Flag for nifty /bank nifty trading_which is used to reset daily(realtime) flags(trade_nfo,trade_bank) as 
 # they might have been changed during the day in realtime 
-enable_bank = int(cfg.get("info", "enable_bank"))                         # 1=Original flag for BANKNIFTY trading. Daily(realtime) flag to be reset eod based on this.  
+enable_bank = int(cfg.get("info", "enable_bank"))                       # 1=Original flag for BANKNIFTY trading. Daily(realtime) flag to be reset eod based on this.  
 enable_NFO = int(cfg.get("info", "enable_NFO"))                         # 1=Original flag for Nifty trading. Daily(realtime) flag to be reset eod based on this.
-enable_bank_data = int(cfg.get("info", "enable_bank_data"))               # 1=CRUDE data subscribed, processed and saved/exported 
+
+enable_bank_data = int(cfg.get("info", "enable_bank_data"))             # 1=CRUDE data subscribed, processed and saved/exported 
 enable_NFO_data = int(cfg.get("info", "enable_NFO_data"))               # 1=NIFTY data subscribed, processed and saved/exported
 file_nifty = cfg.get("info", "file_nifty")
 file_bank = cfg.get("info", "file_bank")
@@ -259,7 +208,7 @@ nifty_limit_price_high = int(cfg.get("info", "nifty_limit_price_high"))
 bank_limit_price_low = int(cfg.get("info", "bank_limit_price_low"))
 bank_limit_price_high = int(cfg.get("info", "bank_limit_price_high"))
 
-
+# Lists for storing Nifty50 and BankNifty LTPs
 lst_nifty_ltp = []
 lst_bank_ltp = []
 
@@ -284,7 +233,7 @@ df_nifty_med = pd.DataFrame(data=[],columns=df_cols)    # Medium - to store 6 mi
 dict_ltp = {}       #Will contain dictionary of token and ltp pulled from websocket
 dict_sl_orders = {} #Dictionary to store SL Order ID: token,target price, instrument, quantity; if ltp > target price then update the SL order limit price.
 
-# lst_nifty = []  
+ 
 cur_min = 0
 flg_min = 0
 flg_med_nifty = 0               # Flag for avoiding consecutive orders when medium signal is generated 
@@ -1430,7 +1379,11 @@ def close_callback():
     iLog("In close_callback().")
 
 
+
+
+# ============================================
 # Main program starts from here...
+# ============================================
 iLog("User = " + susername)
 
 autologin_date = cfg.get("tokens", "autologin_date")
@@ -1444,7 +1397,6 @@ else:
 alice = Aliceblue(user_id=susername,api_key=api_key)
 session_id = alice.get_session_id() # Get Session ID
 
-# iLog(f"session_id={session_id}")
 
 alice.get_contract_master("INDICES")
 alice.get_contract_master("NSE")
@@ -1458,14 +1410,14 @@ ins_bank = alice.get_instrument_by_symbol('INDICES', 'NIFTY BANK')
 
 # Get expiry date
 expiry_date = date.today() + timedelta( (3-date.today().weekday()) % 7 )
-# Reduce one day if thurshday is a holiday
+# Reduce one day if thursday is a holiday
 if str(expiry_date) in weekly_expiry_holiday_dates :
     expiry_date = expiry_date - datetime.timedelta(days=1)
 
 iLog(f"expiry_date={expiry_date}")
 
 
-#Temp assignment for CE/PE instrument tokens
+# Temp assignment for CE/PE instrument tokens
 ins_nifty_ce = ins_nifty
 ins_nifty_pe = ins_nifty
 ins_nifty_opt = ins_nifty
@@ -1483,15 +1435,15 @@ alice.start_websocket(socket_open_callback=open_callback, socket_close_callback=
                       socket_error_callback=error_callback, subscription_callback=event_handler_quote_update, run_in_background=True)
 
 
-# Check with Websocket open status
+# Check Websocket open status
 while(socket_opened==False):
     pass
 
 
-# Sleep to get some tick data through websocket
+# Wait for tick data to be populated through websocket
 sleep(5)
 
-# Get Previous day data if available
+# Get Previous day saved data if available
 try:
     if int(datetime.datetime.now().strftime("%H%M")) < 915:
         # 1. --- Read from previous day. In case of rerun or failures do not load previous day
@@ -1524,7 +1476,8 @@ get_option_tokens("ALL")
 strMsg = "Starting tick processing."
 iLog(strMsg,sendTeleMsg=True)
 
-# Test
+
+# Test Zone
 #---------------------------
 # buy_bank_options("BANK_CE")
 # check_trade_time_zone()
@@ -1686,5 +1639,4 @@ while True:
         sleep(10)
 
 
-
-# 2
+# 3
