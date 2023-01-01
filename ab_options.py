@@ -1,5 +1,11 @@
 # pylint: disable=unused-wildcard-import
 # Refer to https://github.com/RajeshSivadasan/alice-blue-futures/blob/main/ab.py verison comments for previous changes
+
+# ---- Dependencies ----
+# pip3 install pya3
+# pip3 install pycryptodome
+
+# ---- Version History ----
 #v7.3.8 New AliceBlue login process implemented
 #v7.4.0 New AliceBlue API V2 implemented
 #v7.4.1 line 980, fixed banknifty SL taking as nifty SL issue
@@ -8,7 +14,6 @@
 #v7.4.4 Fixed type object 'datetime.time' has no attribute 'sleep' at line 439
 #v7.4.5 Fixed KeyError: 'Emsg'
 #v7.4.6 Added feature to save and read previous day data to maintain continuity in the supertrend indicator otherwise we have to wait for 6 candles to complete for the indicator value generation 
-
 
 
 ###### STRATEGY / TRADE PLAN #####
@@ -31,7 +36,7 @@
 # Nifty option order trigger to be based on Nifty50 Index movement hence nifty50 dataframe required 
 # BankNifty option order trigger to be based on BankNifty Index movement hence banknifty dataframe required to be maintained seperately
 
-# Open issues/tasks:
+# ---- Open issues/tasks:
 # Check use of float in place_order_BO() as it is working in ab.py without it
 # Instead of check_trade_time_zone() plan for no_trade_zone() 
 # Update Contract Symbol ab.update_contract_symbol(). If last friday is holiday this code dosent run and the symbol is not updated and the program fails
@@ -127,7 +132,7 @@ if log_to_file : sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.
 
 # Set user profile; Access token and other user specific info from .ini will be pulled from this section
 strChatID = cfg.get("tokens", "chat_id")
-strBotToken = cfg.get("tokens", "options_bot_token")    #Bot include "bot" prefix in the token
+strBotToken = cfg.get("tokens", "bot_token")    #Bot include "bot" prefix in the token
 strMsg = "Initialising " + __file__
 iLog(strMsg,sendTeleMsg=True)
 
@@ -207,6 +212,12 @@ nifty_limit_price_low = int(cfg.get("info", "nifty_limit_price_low"))
 nifty_limit_price_high = int(cfg.get("info", "nifty_limit_price_high"))
 bank_limit_price_low = int(cfg.get("info", "bank_limit_price_low"))
 bank_limit_price_high = int(cfg.get("info", "bank_limit_price_high"))
+
+
+try:
+    enable_sell_orders = int(cfg.get("info", "enable_sell_orders"))
+except Exception as ex:
+    enable_sell_orders = 0
 
 # Lists for storing Nifty50 and BankNifty LTPs
 lst_nifty_ltp = []
@@ -469,9 +480,6 @@ def place_order_MIS(buy_sell,ins_scrip,qty, order_type = OrderType.Market, limit
                          is_amo = False,
                          order_tag = order_tag)
 
-        # strMsg = "In place_order_MIS(): buy_sell={},ins_scrip={},qty={},order_type={},limit_price={}".format(buy_sell,ins_scrip,qty,order_type,limit_price)
-        # iLog(strMsg,6,sendTeleMsg=True)
-    
     except Exception as ex:
         iLog("Exception occured in place_order_MIS():"+str(ex),3)
 
@@ -479,11 +487,7 @@ def place_order_MIS(buy_sell,ins_scrip,qty, order_type = OrderType.Market, limit
 
 def place_order_BO(ins_scrip,qty,limit_price,stop_loss_abs,target_abs,trailing_sl_abs):
     global alice
-    #ord=
-    #{'status': 'success', 'message': 'Order placed successfully', 'data': {'oms_order_id': '200416000176487'}}
-    #{'status': 'error', 'message': 'Error Occurred :Trigger price cannot be greater than Limit Price', 'data': {}}
-    #ord1['status']=='success'
-    #print(ord['data']['oms_order_id'])
+    
     try:
         ord_obj=alice.place_order(transaction_type = TransactionType.Buy,
                          instrument = ins_scrip,
@@ -497,9 +501,6 @@ def place_order_BO(ins_scrip,qty,limit_price,stop_loss_abs,target_abs,trailing_s
                          trailing_sl = trailing_sl_abs,
                          is_amo = False)
     except Exception as ex:
-            # print("Exception occured in place_order_BO():",ex,flush=True)
-            #ord_obj={'status': 'error'} not required as api gives this in case of actual error
-    #print("place_order_BO():ins_scrip,qty,limit_price,stop_loss_abs,target_abs,trailing_sl_abs:",ins_scrip,qty,limit_price,stop_loss_abs,target_abs,trailing_sl_abs,flush=True)
             iLog("Exception occured in place_order_BO():"+str(ex),3)
 
     return ord_obj
@@ -931,10 +932,10 @@ def get_trade_price_options(bank_nifty):
     elif bank_nifty == "BANK_PE" :
         lt_price = int(ltp_bank_ATM_PE) + bank_limit_price_offset
     else:
-        print("get_trade_price_options1",flush=True)
+        iLog(f"get_trade_price_options(): {bank_nifty}")
     
     lt_price = float(lt_price)
-    print("get_trade_price_options(): lt_price={}".format(lt_price),flush=True)
+    iLog(f"get_trade_price_options(): lt_price={lt_price} sl={sl}")
     
     return lt_price, sl
 
@@ -993,69 +994,86 @@ def get_option_tokens(nifty_bank="ALL"):
     global token_nifty_ce, token_nifty_pe, ins_nifty_ce, ins_nifty_pe, \
         token_bank_ce, token_bank_pe, ins_bank_ce, ins_bank_pe
 
+    intCounter = 3
 
     if nifty_bank=="NIFTY" or nifty_bank=="ALL":
-        if len(lst_nifty_ltp)>0:
-          
-            nifty50 = int(lst_nifty_ltp[-1])
-            # print("nifty50=",nifty50,flush=True)
-
-            nifty_atm = round(int(nifty50),-2)
-            iLog(f"get_option_tokens(): nifty_atm={nifty_atm}")
-
-            strike_ce = float(nifty_atm + nifty_strike_ce_offset)   #ITM Options
-            strike_pe = float(nifty_atm + nifty_strike_pe_offset)
-
-
-            ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
-            ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
-
-
-            alice.subscribe([ins_nifty_ce,ins_nifty_pe])
+        while intCounter>0:
+            if len(lst_nifty_ltp)>0:
             
-            iLog(f"get_option_tokens(): Selected ins_nifty_ce={ins_nifty_ce}")
-            iLog(f"get_option_tokens(): Selected ins_nifty_pe={ins_nifty_pe}")
+                nifty50 = int(lst_nifty_ltp[-1])
+                # print("nifty50=",nifty50,flush=True)
 
-            token_nifty_ce = int(ins_nifty_ce[1])
-            token_nifty_pe = int(ins_nifty_pe[1])
+                nifty_atm = round(int(nifty50),-2)
+                iLog(f"get_option_tokens(): nifty_atm={nifty_atm}")
 
-            # print("token_nifty_ce=",token_nifty_ce,flush=True)
-            # print("token_nifty_pe=",token_nifty_pe,flush=True)
+                strike_ce = float(nifty_atm + nifty_strike_ce_offset)   #ITM Options
+                strike_pe = float(nifty_atm + nifty_strike_pe_offset)
 
-        else:
-            iLog(f"get_option_tokens(): len(lst_nifty_ltp)={len(lst_nifty_ltp)}")
 
+                ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
+                ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+
+
+                alice.subscribe([ins_nifty_ce,ins_nifty_pe])
+                
+                iLog(f"get_option_tokens(): Selected ins_nifty_ce={ins_nifty_ce}")
+                iLog(f"get_option_tokens(): Selected ins_nifty_pe={ins_nifty_pe}")
+
+                token_nifty_ce = int(ins_nifty_ce[1])
+                token_nifty_pe = int(ins_nifty_pe[1])
+
+                # print("token_nifty_ce=",token_nifty_ce,flush=True)
+                # print("token_nifty_pe=",token_nifty_pe,flush=True)
+                break
+
+            else:
+                intCounter = intCounter - 1
+                if intCounter>0:
+                    iLog(f"get_option_tokens(): Waiting for 3 seconds to populate Nifty ltp ticks...",2)
+                    sleep(3)
+                    iLog(f"get_option_tokens(): len(lst_nifty_ltp)={len(lst_nifty_ltp)}",2)
+                
+                
+
+    intCounter = 3
     if nifty_bank=="BANK" or nifty_bank=="ALL":
-        if len(lst_bank_ltp)>0:
-            bank50 = int(lst_bank_ltp[-1])
-            # print("Bank50=",bank50,flush=True)
+        while intCounter>0:
+            if len(lst_bank_ltp)>0:
+                bank50 = int(lst_bank_ltp[-1])
+                # print("Bank50=",bank50,flush=True)
 
-            bank_atm = round(int(bank50),-2)
-            iLog(f"get_option_tokens(): bank_atm={bank_atm}")
+                bank_atm = round(int(bank50),-2)
+                iLog(f"get_option_tokens(): bank_atm={bank_atm}")
 
-            strike_ce = float(bank_atm + bank_strike_ce_offset) #ITM Options
-            strike_pe = float(bank_atm + bank_strike_pe_offset)
+                strike_ce = float(bank_atm + bank_strike_ce_offset) #ITM Options
+                strike_pe = float(bank_atm + bank_strike_pe_offset)
 
-            # print(strike_ce,expiry_date.isoformat())
+                # print(strike_ce,expiry_date.isoformat())
 
-            ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
-            ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+                ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
+                ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
 
-            alice.subscribe([ins_bank_ce,ins_bank_pe])
-            
-            iLog(f"get_option_tokens(): Selected ins_bank_ce={ins_bank_ce}")
-            iLog(f"get_option_tokens(): Selected ins_bank_pe={ins_bank_pe}")
+                alice.subscribe([ins_bank_ce,ins_bank_pe])
+                
+                iLog(f"get_option_tokens(): Selected ins_bank_ce={ins_bank_ce}")
+                iLog(f"get_option_tokens(): Selected ins_bank_pe={ins_bank_pe}")
 
-            token_bank_ce = int(ins_bank_ce[1])
-            token_bank_pe = int(ins_bank_pe[1])
+                token_bank_ce = int(ins_bank_ce[1])
+                token_bank_pe = int(ins_bank_pe[1])
 
-            # print("token_bank_ce=",token_bank_ce,flush=True)
-            # print("token_bank_pe=",token_bank_pe,flush=True)
+                # print("token_bank_ce=",token_bank_ce,flush=True)
+                # print("token_bank_pe=",token_bank_pe,flush=True)
+                break
 
-        else:
-            iLog(f"get_option_tokens(): len(lst_bank_ltp)={len(lst_bank_ltp)}")
+            else:
+                intCounter = intCounter - 1
+                if intCounter>0:
+                    iLog(f"get_option_tokens(): Waiting for 3 seconds to populate Banknifty ltp ticks...",2)
+                    sleep(3)
+                    iLog(f"get_option_tokens(): len(lst_bank_ltp)={len(lst_bank_ltp)}",2)
 
-    sleep(3)
+                
+    
     
     if nifty_bank=="NIFTY" or nifty_bank=="ALL":
         iLog(f"get_option_tokens(): ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}")
@@ -1445,7 +1463,8 @@ sleep(5)
 
 # Get Previous day saved data if available
 try:
-    if int(datetime.datetime.now().strftime("%H%M")) < 915:
+        
+    if int(datetime.now().strftime("%H%M")) < 915:
         # 1. --- Read from previous day. In case of rerun or failures do not load previous day
         # Can clear the parameter file_nifty in the .ini if previous day data is not required
         if enable_NFO_data and file_nifty.strip()!="":
@@ -1454,7 +1473,6 @@ try:
             df_nifty = pd.read_csv(file_nifty).tail(40) 
             df_nifty.reset_index(drop=True, inplace=True)   # To reset index from 0 to 9 as tail gets the last 10 indexes
             df_nifty_cnt = len(df_nifty.index)
-
 
         if enable_bank_data and file_bank.strip()!="":
             iLog("Reading previous 40 period BankNifty data from " + file_bank)
@@ -1635,7 +1653,7 @@ while True:
         check_orders()  # Checks SL orders and sets target, should be called every 10 seconds. check logs
 
     else:
-        iLog(f"Non Market hours {cur_HHMM} , waiting for market hours... Press CTRL+C to abort.")
+        iLog(f"Non Market hours {cur_HHMM}(HH:MM) , waiting for market hours... Press CTRL+C to abort.")
         sleep(10)
 
 
