@@ -14,7 +14,7 @@
 #v7.4.4 Fixed type object 'datetime.time' has no attribute 'sleep' at line 439
 #v7.4.5 Fixed KeyError: 'Emsg'
 #v7.4.6 Added feature to save and read previous day data to maintain continuity in the supertrend indicator otherwise we have to wait for 6 candles to complete for the indicator value generation 
-
+#v7.4.7 Fixed cancel_all_orders issue
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -686,7 +686,7 @@ def buy_bank_options(strMsg):
                 t.start()
 
             else:
-                strMsg = strMsg + ' buy_bank(): MIS Order Failed.' + order['emsg']
+                strMsg = strMsg + f" buy_bank(): MIS Order Failed. {order}" 
                 iLog(strMsg,sendTeleMsg=True)
 
         # BO option may not work as usually BO is disabled in alice blue for options, hence not updating the below code for BO
@@ -695,9 +695,9 @@ def buy_bank_options(strMsg):
             order = place_order_BO(ins_bank_opt,bank_bo1_qty,lt_price,bank_sl,bank_tgt1,bank_tsl)    #SL to be float; 
             if order['stat'] == 'Ok':
                 # buy_order1_bank = order['data']['oms_order_id']
-                strMsg = strMsg + " 1st BO order_id=" + order['NOrdNo']
+                strMsg = strMsg + f" 1st BO order = {order}" 
             else:
-                strMsg = strMsg + ' buy_bank() 1st BO Failed.' + order['emsg']
+                strMsg = strMsg + f" buy_bank() 1st BO Failed. {order}"
 
             #---- Second Bracket order for open target
             if enableBO2_bank:
@@ -706,9 +706,9 @@ def buy_bank_options(strMsg):
                 strMsg = strMsg + " BO2 Limit Price=" + str(lt_price) + " SL=" + str(bank_sl)
                 if order['stat'] == 'Ok':
                     # buy_order2_bank = order['data']['oms_order_id']
-                    strMsg = strMsg + " 2nd BO order_id=" + order['NOrdNo']
+                    strMsg = strMsg + f" 2nd BO order = {order}"
                 else:
-                    strMsg=strMsg + ' buy_bank() 2nd BO Failed.' + order['emsg']
+                    strMsg=strMsg + f" buy_bank() 2nd BO Failed. {order}" 
 
             #---- Third Bracket order for open target
             if enableBO3_bank:  
@@ -717,9 +717,9 @@ def buy_bank_options(strMsg):
                 strMsg = strMsg + " BO3 Limit Price=" + str(lt_price) + " SL=" + str(bank_sl)
                 if order['stat'] == 'Ok':
                     # buy_order3_bank = order['data']['oms_order_id']
-                    strMsg = strMsg + " 3rd BO order_id=" + order['NOrdNo']
+                    strMsg = strMsg + f" 3rd BO order = {order}"
                 else:
-                    strMsg=strMsg + ' buy_bank() 3rd BO Failed.' + order['emsg']
+                    strMsg=strMsg + f" buy_bank() 3rd BO Failed. {order}" 
 
             iLog(strMsg,sendTeleMsg=True)
 
@@ -801,7 +801,10 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
         else:
             #Cancel all open orders
             iLog("close_all_orders(): Cancelling all orders ") #+ c_order['oms_order_id'])
-            alice.cancel_all_orders()
+            # alice.cancel_order .cancel_all_orders()
+            for c_order in lst_open_orders:
+                iLog("close_all_orders(): Cancelling order "+c_order['Nstordno'])
+                alice.cancel_order(c_order['Nstordno'])
     else:
         for c_order in lst_open_orders:
             #if c_order['leg_order_indicator']=='' then its actual pending order not leg order
