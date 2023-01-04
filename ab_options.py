@@ -17,6 +17,7 @@
 #v7.4.7 Fixed cancel_all_orders issue
 #v7.4.8 updated MTM logic in check_MTM_Limit() and changed the loop logic to check MTM after every 9 seconds 
 #v7.4.9 Added RSI indicator support and created generic get_buy_sell() function to process the indicators and generate signal; Fixed banknifty previous day data load issue
+#v7.5.0 Added "use_rsi" option to enable or disable use of RSI indictor along with supertrend  
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -215,15 +216,11 @@ nifty_limit_price_high = int(cfg.get("info", "nifty_limit_price_high"))
 bank_limit_price_low = int(cfg.get("info", "bank_limit_price_low"))
 bank_limit_price_high = int(cfg.get("info", "bank_limit_price_high"))
 
+use_rsi = int(cfg.get("info", "use_rsi"))
 rsi_period = int(cfg.get("info", "rsi_period"))
 rsi_buy_param = int(cfg.get("info", "rsi_buy_param"))
 rsi_sell_param = int(cfg.get("info", "rsi_sell_param"))
 
-
-try:
-    enable_sell_orders = int(cfg.get("info", "enable_sell_orders"))
-except Exception as ex:
-    enable_sell_orders = 0
 
 # Lists for storing Nifty50 and BankNifty LTPs
 lst_nifty_ltp = []
@@ -1189,6 +1186,8 @@ def check_orders():
 def get_buy_sell(df_data):
 
     strMsgPrefix = "get_buy_sell():"
+    iLog(f"{strMsgPrefix} use_rsi={use_rsi} rsi_period={rsi_period}" )
+
     # Apply supertrend and RSI indicators to the data
     SuperTrend(df_data)                        # Supertrend calculations
     lst_super_trend = df_data.STX.values        # Get ST values into a list
@@ -1201,32 +1200,37 @@ def get_buy_sell(df_data):
 
     #--BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY
     if lst_super_trend[-1]=='up' and lst_super_trend[-2]=='down' and lst_super_trend[-3]=='down' and lst_super_trend[-4]=='down' and lst_super_trend[-5]=='down' and lst_super_trend[-6]=='down':
-        if df_data.RSI.iloc[-1] > rsi_buy_param and df_data.RSI.iloc[-1] < rsi_sell_param:
-            c1 = round((df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3]) / df_data.RSI.iloc[-3], 3 )
-            c2 = round((df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2]) / df_data.RSI.iloc[-2], 3 )
+        if use_rsi:
+            if df_data.RSI.iloc[-1] > rsi_buy_param and df_data.RSI.iloc[-1] < rsi_sell_param:
+                c1 = round((df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3]) / df_data.RSI.iloc[-3], 3 )
+                c2 = round((df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2]) / df_data.RSI.iloc[-2], 3 )
 
-            iLog(f"{strMsgPrefix} ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-            if c2 > c1: #percent Rate of change is increasing
-                result = "B" 
-            else:
-                strMsg = f"{strMsgPrefix} ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
-                iLog(strMsg,sendTeleMsg=True)
-
+                iLog(f"{strMsgPrefix} ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
+                if c2 > c1: #percent Rate of change is increasing
+                    result = "B" 
+                else:
+                    strMsg = f"{strMsgPrefix} ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
+                    iLog(strMsg,sendTeleMsg=True)
+        else:
+            result = "B" 
 
     #---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL        
     elif lst_super_trend[-1]=='down' and lst_super_trend[-2]=='up' and lst_super_trend[-3]=='up' and lst_super_trend[-4]=='up' and lst_super_trend[-5]=='up' and lst_super_trend[-6]=='up':
-        if df_data.RSI.iloc[-1] < rsi_sell_param and df_data.RSI.iloc[-1] > rsi_buy_param:
-            c1 = round( ( df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3] ) / df_data.RSI.iloc[-3] , 3 )
-            c2 = round( ( df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2] ) / df_data.RSI.iloc[-2] , 3 )
-            
-            iLog(f"{strMsgPrefix} ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-            
-            if c2 < c1: # percent Rate of change is decreasing
-                result = "S"
-            else:
-                strMsg = f"{strMsgPrefix} ST=down - RSI Rate of change not as per trend. PE Buy not inititated."
-                iLog(strMsg,sendTeleMsg=True)
-    
+        if use_rsi:
+            if df_data.RSI.iloc[-1] < rsi_sell_param and df_data.RSI.iloc[-1] > rsi_buy_param:
+                c1 = round( ( df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3] ) / df_data.RSI.iloc[-3] , 3 )
+                c2 = round( ( df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2] ) / df_data.RSI.iloc[-2] , 3 )
+                
+                iLog(f"{strMsgPrefix} ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
+                
+                if c2 < c1: # percent Rate of change is decreasing
+                    result = "S"
+                else:
+                    strMsg = f"{strMsgPrefix} ST=down - RSI Rate of change not as per trend. PE Buy not inititated."
+                    iLog(strMsg,sendTeleMsg=True)
+        else:
+            result = "S"
+
     return result
 
 
@@ -1408,15 +1412,10 @@ def event_handler_quote_update(message):
     global dict_ltp, lst_bank_ltp,ltp_bank_ATM_CE,ltp_bank_ATM_PE, lst_nifty_ltp, ltp_nifty_ATM_CE, ltp_nifty_ATM_PE
 
     feed_message = json.loads(message)
-    # print("feed_message=")
-    # print(feed_message)
 
     if feed_message["t"]=='tf':
         if(feed_message["tk"]==str(token_nifty_ce)):
-            # print(feed_message)
             ltp_nifty_ATM_CE = float(feed_message['lp'] if 'lp' in feed_message else ltp_nifty_ATM_CE)
-            # ltp_nifty_ATM_CE = float(feed_message["lp"])
-            # iLog(f"ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}")
 
         if(feed_message["tk"]==str(token_nifty_pe)):
             ltp_nifty_ATM_PE = float(feed_message['lp'] if 'lp' in feed_message else ltp_nifty_ATM_PE)
@@ -1588,7 +1587,7 @@ while True:
                 # Formation of BankNifty candle
                 df_bank.loc[df_bank_cnt, df_cols]=[cur_HHMM, tmp_lst[0], max(tmp_lst), min(tmp_lst), tmp_lst[-1],"",0]
                 df_bank_cnt = df_bank_cnt + 1 
-                strMsg = strMsg + " " + str(round(tmp_lst[-1]))      #Crude close 
+                strMsg = strMsg + " BN=" + str(round(tmp_lst[-1]))      #Crude close 
 
                     
             if len(lst_nifty_ltp) > 1: #and cur_HHMM > 914 and cur_HHMM < 1531:    #Nifty Candle
@@ -1599,7 +1598,7 @@ while True:
                 df_nifty.loc[df_nifty_cnt,df_cols] = [cur_HHMM,tmp_lst[0],max(tmp_lst),min(tmp_lst),tmp_lst[-1],"",0]
                 df_nifty_cnt = df_nifty_cnt + 1
 
-                strMsg = strMsg + " " + str(round(tmp_lst[-1]))      #Nifty close
+                strMsg = strMsg + " N=" + str(round(tmp_lst[-1]))      #Nifty close
 
 
             # Get realtime config changes from .ini file and reload variables
@@ -1614,100 +1613,24 @@ while True:
             #           BANKNIFTY Order Generation
             # #######################################
             if df_bank_cnt > 6 and cur_HHMM > 914 and cur_HHMM < 1531:        # Calculate BankNifty indicators and call buy/sell
-
-                # SuperTrend(df_bank)                     # Supertrend calculations
-                # super_trend_bank = df_bank.STX.values   # Get ST values into a list
-
-                # RSI(df_bank,rsi_period)
-
                 # Calculate indicators and generate buy/sell signal
                 signal =  get_buy_sell(df_bank) 
-                #strMsg=f"BankNifty: #={df_bank_cnt}, ST={super_trend_bank[-1]}, ST_SL={round(df_bank.ST.iloc[-1])}, ATR={round(df_bank.ATR.iloc[-1],1)}, ltp_bank_ATM_CE={ltp_bank_ATM_CE}, ltp_bank_ATM_PE={ltp_bank_ATM_PE}"
-                #iLog(strMsg)
                 if signal=="B":
                     buy_bank_options("BANK_CE")
                 elif signal=="S":
                     buy_bank_options("BANK_PE")
 
-                # #--BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY
-                # if super_trend_bank[-1]=='up' and super_trend_bank[-2]=='down' and super_trend_bank[-3]=='down' and super_trend_bank[-4]=='down' and super_trend_bank[-5]=='down' and super_trend_bank[-6]=='down':
-                #     if df_bank.RSI.iloc[-1] > rsi_buy_param and df_bank.RSI.iloc[-1] < rsi_sell_param:
-                #         c1 = round((df_bank.RSI.iloc[-2] - df_bank.RSI.iloc[-3]) / df_bank.RSI.iloc[-3], 3 )
-                #         c2 = round((df_bank.RSI.iloc[-1] - df_bank.RSI.iloc[-2]) / df_bank.RSI.iloc[-2], 3 )
 
-                #         iLog(f"BANKNIFTY ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                #         if c2 > c1: #percent Rate of change is increasing 
-                #             buy_bank_options("BANK_CE")
-                #         else:
-                #             strMsg = "BANKNIFTY ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
-                #             iLog(strMsg,sendTeleMsg=True)
- 
-  
-     
-                # #---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL        
-                # elif super_trend_bank[-1]=='down' and super_trend_bank[-2]=='up' and super_trend_bank[-3]=='up' and super_trend_bank[-4]=='up' and super_trend_bank[-5]=='up' and super_trend_bank[-6]=='up':
-                #     if df_bank.RSI.iloc[-1] < rsi_sell_param and df_bank.RSI.iloc[-1] > rsi_buy_param:
-                #         c1 = round((df_bank.RSI.iloc[-2] - df_bank.RSI.iloc[-3]) / df_bank.RSI.iloc[-3], 3 )
-                #         c2 = round((df_bank.RSI.iloc[-1] - df_bank.RSI.iloc[-2]) / df_bank.RSI.iloc[-2], 3 )
-
-                #         iLog(f"BANKNIFTY ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                #         if c2 > c1: #percent Rate of change is increasing 
-                #             buy_bank_options("BANK_PE")
-                #         else:
-                #             strMsg = "BANKNIFTY ST=down - RSI Rate of change not as per trend. PE Buy not initiated."
-                #             iLog(strMsg,sendTeleMsg=True)
-      
-
-
-
-            # Nifty - Only 5 ST values checked in condition as compared to bank
             # ////////////////////////////////////////
             #           NIFTY Order Generation
             # ////////////////////////////////////////
             if df_nifty_cnt > 6 and cur_HHMM > 914 and cur_HHMM < 1531:        # Calculate Nifty indicators and call buy/sell
-
-                # SuperTrend(df_nifty)                        # Supertrend calculations
-                # super_trend_nifty = df_nifty.STX.values     # Get ST values into a list
-
-                # RSI(df_nifty,rsi_period)
-
                 # Calculate indicators and generate buy/sell signal
-                #signal =  get_buy_sell(df_nifty)
-                #strMsg=f"Nifty: #={df_nifty_cnt}, ST={super_trend_nifty[-1]}, ST_SL={round(df_nifty.ST.iloc[-1])}, ATR={round(df_nifty.ATR.iloc[-1],1)}, ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}, ltp_nifty_ATM_PE={ltp_nifty_ATM_PE}"
-                iLog(strMsg)
+                signal =  get_buy_sell(df_nifty)
                 if signal=="B":
                     buy_nifty_options("NIFTY_CE")
                 elif signal=="S":
                     buy_nifty_options("NIFTY_PE")
-
-
-                # #--BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY---BUY
-                # if super_trend_nifty[-1]=='up' and super_trend_nifty[-2]=='down' and super_trend_nifty[-3]=='down' and super_trend_nifty[-4]=='down' and super_trend_nifty[-5]=='down' and super_trend_nifty[-6]=='down':
-                #     if df_nifty.RSI.iloc[-1] > rsi_buy_param and df_nifty.RSI.iloc[-1] < rsi_sell_param:
-                #         c1 = round((df_nifty.RSI.iloc[-2] - df_nifty.RSI.iloc[-3]) / df_nifty.RSI.iloc[-3], 3 )
-                #         c2 = round((df_nifty.RSI.iloc[-1] - df_nifty.RSI.iloc[-2]) / df_nifty.RSI.iloc[-2], 3 )
-
-                #         iLog(f"NIFTY ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                #         if c2 > c1: #percent Rate of change is increasing 
-                #             buy_nifty_options("NIFTY_CE")
-                #         else:
-                #             strMsg = "NIFTY ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
-                #             iLog(strMsg,sendTeleMsg=True)
-
-       
-                # #---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL---SELL        
-                # elif super_trend_nifty[-1]=='down' and super_trend_nifty[-2]=='up' and super_trend_nifty[-3]=='up' and super_trend_nifty[-4]=='up' and super_trend_nifty[-5]=='up' and super_trend_nifty[-6]=='up':
-                #     if df_nifty.RSI.iloc[-1] < rsi_sell_param and df_nifty.RSI.iloc[-1] > rsi_buy_param:
-                #         c1 = round( ( df_nifty.RSI.iloc[-2] - df_nifty.RSI.iloc[-3] ) / df_nifty.RSI.iloc[-3] , 3 )
-                #         c2 = round( ( df_nifty.RSI.iloc[-1] - df_nifty.RSI.iloc[-2] ) / df_nifty.RSI.iloc[-2] , 3 )
-                        
-                #         iLog(f"NIFTY ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                        
-                #         if c2 < c1: # percent Rate of change is decreasing
-                #             buy_nifty_options("NIFTY_PE")
-                #         else:
-                #             strMsg = "NIFTY ST=down - RSI Rate of change not as per trend. PE Buy not inititated."
-                #             iLog(strMsg,sendTeleMsg=True)
 
 
 
@@ -1768,4 +1691,4 @@ while True:
         sleep(10)
 
 
-# 3
+# 5
