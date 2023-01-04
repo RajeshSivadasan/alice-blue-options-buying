@@ -1622,8 +1622,8 @@ while True:
 
                 # Calculate indicators and generate buy/sell signal
                 signal =  get_buy_sell(df_bank) 
-                strMsg=f"BankNifty: #={df_bank_cnt}, ST={super_trend_bank[-1]}, ST_SL={round(df_bank.ST.iloc[-1])}, ATR={round(df_bank.ATR.iloc[-1],1)}, ltp_bank_ATM_CE={ltp_bank_ATM_CE}, ltp_bank_ATM_PE={ltp_bank_ATM_PE}"
-                iLog(strMsg)
+                #strMsg=f"BankNifty: #={df_bank_cnt}, ST={super_trend_bank[-1]}, ST_SL={round(df_bank.ST.iloc[-1])}, ATR={round(df_bank.ATR.iloc[-1],1)}, ltp_bank_ATM_CE={ltp_bank_ATM_CE}, ltp_bank_ATM_PE={ltp_bank_ATM_PE}"
+                #iLog(strMsg)
                 if signal=="B":
                     buy_bank_options("BANK_CE")
                 elif signal=="S":
@@ -1672,8 +1672,8 @@ while True:
                 # RSI(df_nifty,rsi_period)
 
                 # Calculate indicators and generate buy/sell signal
-                signal =  get_buy_sell(df_nifty)
-                strMsg=f"Nifty: #={df_nifty_cnt}, ST={super_trend_nifty[-1]}, ST_SL={round(df_nifty.ST.iloc[-1])}, ATR={round(df_nifty.ATR.iloc[-1],1)}, ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}, ltp_nifty_ATM_PE={ltp_nifty_ATM_PE}"
+                #signal =  get_buy_sell(df_nifty)
+                #strMsg=f"Nifty: #={df_nifty_cnt}, ST={super_trend_nifty[-1]}, ST_SL={round(df_nifty.ST.iloc[-1])}, ATR={round(df_nifty.ATR.iloc[-1],1)}, ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}, ltp_nifty_ATM_PE={ltp_nifty_ATM_PE}"
                 iLog(strMsg)
                 if signal=="B":
                     buy_nifty_options("NIFTY_CE")
