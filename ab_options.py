@@ -18,8 +18,9 @@
 #v7.4.8 updated MTM logic in check_MTM_Limit() and changed the loop logic to check MTM after every 9 seconds 
 #v7.4.9 Added RSI indicator support and created generic get_buy_sell() function to process the indicators and generate signal; Fixed banknifty previous day data load issue
 #v7.5.0 Added "use_rsi" option to enable or disable use of RSI indictor along with supertrend
-#v7.5.1 Fixed TypeError: string indices must be integers in close_all_orders() 
-version = "7.5.1" 
+# v7.5.1 Fixed TypeError: string indices must be integers in close_all_orders(); file_nifty name updated
+# v7.5.2 file_nifty name updated, added all_variables printing, removed logging in get_buy_sell()  
+version = "7.5.2" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -192,7 +193,6 @@ bank_tgt3 = float(cfg.get("info", "bank_tgt2"))     #200.0
 
 olhc_duration = int(cfg.get("info", "olhc_duration"))   #3
 nifty_sqoff_time = int(cfg.get("info", "nifty_sqoff_time")) #1512 time after which orders not to be processed and open orders to be cancelled
-# bank_sqoff_time = int(cfg.get("info", "bank_sqoff_time")) #2310 time after which orders not to be processed and open orders to be cancelled
 
 nifty_tsl = int(cfg.get("info", "nifty_tsl"))   #Trailing Stop Loss for Nifty
 bank_tsl = int(cfg.get("info", "bank_tsl"))     #Trailing Stop Loss for BankNifty
@@ -224,6 +224,9 @@ rsi_buy_param = int(cfg.get("info", "rsi_buy_param"))
 rsi_sell_param = int(cfg.get("info", "rsi_sell_param"))
 
 
+
+all_variables = f"enableBO2_nifty={enableBO2_nifty}\nenableBO3_nifty={enableBO3_nifty}\nenableBO2_bank={enableBO2_bank}\nenableBO3_bank={enableBO3_bank}\ntrade_nfo={trade_nfo}\ntrade_bank={trade_bank}\nnifty_sl={nifty_sl}\nbank_sl={bank_sl}\nmtm_sl={mtm_sl}\nmtm_target={mtm_target}\nnifty_bo1_qty={nifty_bo1_qty}\nnifty_bo2_qty={nifty_bo2_qty}\nnifty_bo3_qty={nifty_bo3_qty}\nbank_bo1_qty={bank_bo1_qty}\nbank_bo2_qty={bank_bo2_qty}\nbank_bo3_qty={bank_bo3_qty}\nsl_buffer={sl_buffer}\nnifty_ord_type={nifty_ord_type}\nbank_ord_type={bank_ord_type}\nnifty_limit_price_offset={nifty_limit_price_offset}\nbank_limit_price_offset={bank_limit_price_offset}\nnifty_strike_ce_offset={nifty_strike_ce_offset}\nnifty_strike_pe_offset={nifty_strike_pe_offset}\nbank_strike_ce_offset={bank_strike_ce_offset}\nbank_strike_pe_offset={bank_strike_pe_offset}\nweekly_expiry_holiday_dates={weekly_expiry_holiday_dates}\nnifty_tgt1={nifty_tgt1}\nnifty_tgt2={nifty_tgt2}\nnifty_tgt3={nifty_tgt3}\nbank_tgt1={bank_tgt1}\nbank_tgt2={bank_tgt2}\nbank_tgt3={bank_tgt3}\nolhc_duration={olhc_duration}\nnifty_sqoff_time={nifty_sqoff_time}\nnifty_tsl={nifty_tsl}\nbank_tsl={bank_tsl}\nenable_bank={enable_bank}\nenable_NFO={enable_NFO}\nenable_bank_data={enable_bank_data}\nenable_NFO_data={enable_NFO_data}\nfile_nifty={file_nifty}\nfile_bank={file_bank}\nno_of_trades_limit={no_of_trades_limit}\npending_ord_limit_mins={pending_ord_limit_mins}\nnifty_trade_start_time={nifty_trade_start_time}\nnifty_trade_end_time={nifty_trade_end_time}\nsl_wait_time={sl_wait_time}\nnifty_limit_price_low={nifty_limit_price_low}\nnifty_limit_price_high={nifty_limit_price_high}\nbank_limit_price_low={bank_limit_price_low}\nbank_limit_price_high={bank_limit_price_high}\nuse_rsi={use_rsi}\nrsi_period={rsi_period}\nrsi_buy_param={rsi_buy_param}\nrsi_sell_param={rsi_sell_param}"
+iLog("Setting Used:\n"+all_variables,sendTeleMsg=True)
 # Lists for storing Nifty50 and BankNifty LTPs
 lst_nifty_ltp = []
 lst_bank_ltp = []
@@ -316,7 +319,7 @@ def savedata(flgUpdateConfigFile=True):
     try:
         ts_ext = datetime.now().strftime("%Y%m%d_%H%M%S") + ".csv"
         if enable_NFO_data:
-            file_nifty = "./data/NIFTY_OPT_" + ts_ext 
+            file_nifty = "./data/NIFTY_" + ts_ext 
             # file_nifty_med = "./data/NIFTY_OPT_MED_" + ts_ext
             df_nifty.to_csv(file_nifty,index=False)
             # df_nifty_med.to_csv(file_nifty_med,index=False)
@@ -1190,7 +1193,7 @@ def check_orders():
 def get_buy_sell(df_data):
 
     strMsgPrefix = "get_buy_sell():"
-    iLog(f"{strMsgPrefix} use_rsi={use_rsi} rsi_period={rsi_period}" )
+    # iLog(f"{strMsgPrefix} use_rsi={use_rsi} rsi_period={rsi_period}" )
 
     # Apply supertrend and RSI indicators to the data
     SuperTrend(df_data)                        # Supertrend calculations
@@ -1618,6 +1621,7 @@ while True:
             # #######################################
             if df_bank_cnt > 6 and cur_HHMM > 914 and cur_HHMM < 1531:        # Calculate BankNifty indicators and call buy/sell
                 # Calculate indicators and generate buy/sell signal
+                iLog("Checking BANKNIFTY signal from get_buy_sell()")
                 signal =  get_buy_sell(df_bank) 
                 if signal=="B":
                     buy_bank_options("BANK_CE")
@@ -1630,6 +1634,7 @@ while True:
             # ////////////////////////////////////////
             if df_nifty_cnt > 6 and cur_HHMM > 914 and cur_HHMM < 1531:        # Calculate Nifty indicators and call buy/sell
                 # Calculate indicators and generate buy/sell signal
+                iLog("Checking NIFTY signal from get_buy_sell()")
                 signal =  get_buy_sell(df_nifty)
                 if signal=="B":
                     buy_nifty_options("NIFTY_CE")
@@ -1691,5 +1696,5 @@ while True:
         MTM = check_MTM_Limit()
 
     else:
-        iLog(f"Non Market hours {cur_HHMM}(HH:MM) , waiting for market hours... Press CTRL+C to abort.")
+        iLog(f"Non Market hours {cur_HHMM}(HHMM) , waiting for market hours... Press CTRL+C to abort.")
         sleep(10)
