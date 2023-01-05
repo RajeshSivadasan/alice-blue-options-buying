@@ -17,7 +17,9 @@
 #v7.4.7 Fixed cancel_all_orders issue
 #v7.4.8 updated MTM logic in check_MTM_Limit() and changed the loop logic to check MTM after every 9 seconds 
 #v7.4.9 Added RSI indicator support and created generic get_buy_sell() function to process the indicators and generate signal; Fixed banknifty previous day data load issue
-#v7.5.0 Added "use_rsi" option to enable or disable use of RSI indictor along with supertrend  
+#v7.5.0 Added "use_rsi" option to enable or disable use of RSI indictor along with supertrend
+#v7.5.1 Fixed TypeError: string indices must be integers in close_all_orders() 
+version = "7.5.1" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -138,7 +140,7 @@ if log_to_file : sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.
 # Set user profile; Access token and other user specific info from .ini will be pulled from this section
 strChatID = cfg.get("tokens", "chat_id")
 strBotToken = cfg.get("tokens", "bot_token")    #Bot include "bot" prefix in the token
-strMsg = "Initialising " + __file__
+strMsg = f"Initialising {__file__} version={version}"
 iLog(strMsg,sendTeleMsg=True)
 
 
@@ -771,12 +773,14 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
         # lst_open_orders=[ord for ord in dict_ord if ord['Status']=='open']
         # orders = alice.get_order_history('')['data']['pending_orders'] 
         # Get all open orders
-        lst_open_orders = [ord for ord in alice.get_order_history('') if ord['Status']=='open']
-        if not lst_open_orders:
-            # print(datetime.datetime.now(),"In close_all_orders(). No Pending Orders found.",opt_index,flush=True)
-            iLog(f"close_all_orders(): No Pending Orders found for {opt_index}")
-            return    
-        # Else is captured below exception
+        lst_open_orders = []
+        lst_orders = alice.get_order_history('')
+        if lst_orders==list:
+            lst_open_orders = [ord for ord in lst_orders if ord['Status']=='open']
+            if not lst_open_orders:
+                # print(datetime.datetime.now(),"In close_all_orders(). No Pending Orders found.",opt_index,flush=True)
+                iLog(f"close_all_orders(): No Pending Orders found for {opt_index}")
+                return    
         
     except Exception as ex:
         lst_open_orders = None
@@ -1689,6 +1693,3 @@ while True:
     else:
         iLog(f"Non Market hours {cur_HHMM}(HH:MM) , waiting for market hours... Press CTRL+C to abort.")
         sleep(10)
-
-
-# 5
