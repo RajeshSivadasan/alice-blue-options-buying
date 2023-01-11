@@ -19,8 +19,11 @@
 #v7.4.9 Added RSI indicator support and created generic get_buy_sell() function to process the indicators and generate signal; Fixed banknifty previous day data load issue
 #v7.5.0 Added "use_rsi" option to enable or disable use of RSI indictor along with supertrend
 # v7.5.1 Fixed TypeError: string indices must be integers in close_all_orders(); file_nifty name updated
-# v7.5.2 file_nifty name updated, added all_variables printing, removed logging in get_buy_sell()  
-version = "7.5.2" 
+# v7.5.2 file_nifty name updated, added all_variables printing, removed logging in get_buy_sell()
+# v7.5.3 Fixed KeyError: 'NOrdNo' in buy_nifty_options() line 594 
+# v7.5.4 Publish to channel functionality added. channel_is is @channel name from the channel link. e.g if channel link is https://t.me/mychannelname then channel_id will be @mychannelname, Added messages in the algo for publishing performance data to the channel, Included option name in the signal log
+# alice.get_scrip_info(ins_nifty_ce)
+version = "7.5.4" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -103,7 +106,7 @@ if not os.path.exists("./data") : os.makedirs("./data")
 #      Logging method
 ###################################
 # Custom logging: Default Info=1, data =0
-def iLog(strLogText,LogType=1,sendTeleMsg=False):
+def iLog(strLogText,LogType=1,sendTeleMsg=False,publishToChannel=False):
     '''0=data, 1=Info, 2-Warning, 3-Error, 4-Abort, 5-Signal(Buy/Sell) ,6-Activity/Task done
 
         sendTelegramMsg=True - Send Telegram message as well. 
@@ -111,7 +114,7 @@ def iLog(strLogText,LogType=1,sendTeleMsg=False):
     '''
     #0- Data format TBD; symbol, price, qty, SL, Tgt, TSL
     
-    print("{}|{}|{}".format(datetime.now(),LogType,strLogText),flush=True)
+    print(f"{datetime.now()}|{LogType}|{strLogText}",flush=True)
     
     if sendTeleMsg :
         try:
@@ -119,6 +122,12 @@ def iLog(strLogText,LogType=1,sendTeleMsg=False):
         except:
             iLog("Telegram message failed."+strLogText)
 
+    if publishToChannel and channel_id:
+        try:
+            strLogText = f"[{ORDER_TAG}]{strLogText}"
+            requests.get("https://api.telegram.org/"+strBotToken+"/sendMessage?chat_id="+channel_id+"&text="+strLogText)
+        except:
+            iLog("Telegram channel publish failed."+strLogText)
 
 ######################################
 #       Initialise variables
@@ -127,7 +136,7 @@ supertrend_period = 7 #5 #7 #30 NOte: This changes the ATR period also
 supertrend_multiplier = 2.5 #1.5 #3
 
 INI_FILE = __file__[:-3]+".ini"              # Set .ini file name used for storing config info.
-ORDER_TAG = __file__[:-3].split("\\")[-1]   # Used as order tag while placing the orders to identify the source of orders
+ORDER_TAG = __file__[:-3].split("/")[-1]   # Used as order tag while placing the orders to identify the source of orders windows \\, unix /
 
 # Load parameters from the config file
 cfg = configparser.ConfigParser()
@@ -141,14 +150,18 @@ if log_to_file : sys.stdout = sys.stderr = open(r"./log/ab_options_" + datetime.
 # Set user profile; Access token and other user specific info from .ini will be pulled from this section
 strChatID = cfg.get("tokens", "chat_id")
 strBotToken = cfg.get("tokens", "bot_token")    #Bot include "bot" prefix in the token
+channel_id = cfg.get("tokens", "channel_id").strip()
+
 strMsg = f"Initialising {__file__} version={version}"
 iLog(strMsg,sendTeleMsg=True)
 
+iLog(f"Starting Algo {ORDER_TAG} version={version}",sendTeleMsg=False,publishToChannel=True)
 
 # Get user credentials
 susername = cfg.get("tokens", "uid")
 spassword = cfg.get("tokens", "pwd")
 api_key = cfg.get("tokens", "api_key")
+
 
 # Below Realtime variables are loaded using get_realtime_config()
 enableBO2_nifty = int(cfg.get("realtime", "enableBO2_nifty"))       # True = 1 (or non zero) False=0 
@@ -532,7 +545,7 @@ def buy_nifty_options(strMsg):
     elif strMsg == "NIFTY_PE" :
         ins_nifty_opt = ins_nifty_pe
 
-    strMsg = strMsg + f" {ins_nifty_opt[2]}" + " Limit Price=" + str(lt_price) + " SL=" + str(nifty_sl)
+    strMsg = strMsg + f" {ins_nifty_opt[3]}" + " Limit Price=" + str(lt_price) + " SL=" + str(nifty_sl)
 
     
     if lt_price<nifty_limit_price_low or lt_price>nifty_limit_price_high :
@@ -591,7 +604,7 @@ def buy_nifty_options(strMsg):
             order = place_order_BO(ins_nifty_opt,nifty_bo1_qty,lt_price,nifty_sl,nifty_tgt1,nifty_tsl)    #SL to be float; 
             if order['stat'] == 'Ok':
                 # buy_order1_nifty = order['data']['oms_order_id']
-                strMsg = strMsg + " 1st BO order_id=" + order['NOrdNo']
+                strMsg = strMsg + f" 1st BO order_id={order}"
             else:
                 strMsg = strMsg + f' buy_nifty() 1st BO Failed. {order}'
 
@@ -602,7 +615,7 @@ def buy_nifty_options(strMsg):
                 strMsg = strMsg + " BO2 Limit Price=" + str(lt_price) + " SL=" + str(nifty_sl)
                 if order['stat'] == 'Ok':
                     # buy_order2_nifty = order['data']['oms_order_id']
-                    strMsg = strMsg + " 2nd BO order_id=" + order['NOrdNo']
+                    strMsg = strMsg + f" 2nd BO order_id={order}"
                 else:
                     strMsg=strMsg + f' buy_nifty() 2nd BO Failed. {order}'
 
@@ -613,11 +626,11 @@ def buy_nifty_options(strMsg):
                 strMsg = strMsg + " BO3 Limit Price=" + str(lt_price) + " SL=" + str(nifty_sl)
                 if order['stat'] == 'Ok':
                     # buy_order3_nifty = order['data']['oms_order_id']
-                    strMsg = strMsg + " 3rd BO order_id=" + order['NOrdNo']
+                    strMsg = strMsg + f" 3rd BO order_id={order}"
                 else:
                     strMsg=strMsg + f' buy_nifty() 3rd BO Failed. {order}'
 
-            iLog(strMsg,sendTeleMsg=True)
+            iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
 
 def buy_bank_options(strMsg):
     '''Buy Banknifty options '''
@@ -640,7 +653,7 @@ def buy_bank_options(strMsg):
         ins_bank_opt = ins_bank_pe
     
 
-    strMsg = strMsg + f" {ins_bank_opt[2]}" + " Limit Price=" + str(lt_price) + " SL=" + str(bank_sl)
+    strMsg = strMsg + f" {ins_bank_opt[3]}" + " Limit Price=" + str(lt_price) + " SL=" + str(bank_sl)
 
     
     if lt_price<bank_limit_price_low or lt_price>bank_limit_price_high :
@@ -676,7 +689,7 @@ def buy_bank_options(strMsg):
             #---- Intraday order (MIS) , Market Order
             # order = place_order_MIS(TransactionType.Buy, ins_bank_opt,bank_bo1_qty)
             # order_tag = datetime.datetime.now().strftime("BN_%H%M%S")
-            # IF BO2 is enabled then trade quantity needs to be doubled. Two SL/TGT Orders will be placed with the below quantity 
+            # IF BO2 is enabled then trade quantity needs to    be doubled. Two SL/TGT Orders will be placed with the below quantity 
             bo1_qty = bank_bo1_qty
             if enableBO2_bank: 
                 bo1_qty = bank_bo1_qty*2
@@ -724,7 +737,7 @@ def buy_bank_options(strMsg):
                 else:
                     strMsg=strMsg + f" buy_bank() 3rd BO Failed. {order}" 
 
-            iLog(strMsg,sendTeleMsg=True)
+            iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
 
 def subscribe_ins():
     global alice,ins_nifty,ins_bank
@@ -1027,17 +1040,24 @@ def get_option_tokens(nifty_bank="ALL"):
                 strike_pe = float(nifty_atm + nifty_strike_pe_offset)
 
 
-                ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
-                ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+                tmp_ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
+                tmp_ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
 
+                if ins_nifty_ce != tmp_ins_nifty_ce:
+                    ins_nifty_ce = tmp_ins_nifty_ce
+                    token_nifty_ce = int(ins_nifty_ce[1])
+                    alice.subscribe([ins_nifty_ce])
 
-                alice.subscribe([ins_nifty_ce,ins_nifty_pe])
+                if ins_nifty_pe != tmp_ins_nifty_pe:
+                    ins_nifty_pe = tmp_ins_nifty_pe
+                    token_nifty_pe = int(ins_nifty_pe[1])
+                    alice.subscribe([ins_nifty_pe])
                 
                 iLog(f"get_option_tokens(): Selected ins_nifty_ce={ins_nifty_ce}")
                 iLog(f"get_option_tokens(): Selected ins_nifty_pe={ins_nifty_pe}")
 
-                token_nifty_ce = int(ins_nifty_ce[1])
-                token_nifty_pe = int(ins_nifty_pe[1])
+                
+                
 
                 # print("token_nifty_ce=",token_nifty_ce,flush=True)
                 # print("token_nifty_pe=",token_nifty_pe,flush=True)
@@ -1067,17 +1087,26 @@ def get_option_tokens(nifty_bank="ALL"):
 
                 # print(strike_ce,expiry_date.isoformat())
 
-                ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
-                ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+                tmp_ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
+                tmp_ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
 
-                alice.subscribe([ins_bank_ce,ins_bank_pe])
                 
+                if ins_bank_ce!=tmp_ins_bank_ce:
+                    ins_bank_ce=tmp_ins_bank_ce
+                    token_bank_ce = int(ins_bank_ce[1])
+                    alice.subscribe([ins_bank_ce])
+                
+                if ins_bank_pe!=tmp_ins_bank_pe:
+                    ins_bank_pe=tmp_ins_bank_pe
+                    token_bank_pe = int(ins_bank_pe[1])
+                    alice.subscribe([ins_bank_pe])
+
+
+
                 iLog(f"get_option_tokens(): Selected ins_bank_ce={ins_bank_ce}")
                 iLog(f"get_option_tokens(): Selected ins_bank_pe={ins_bank_pe}")
 
-                token_bank_ce = int(ins_bank_ce[1])
-                token_bank_pe = int(ins_bank_pe[1])
-
+                
                 # print("token_bank_ce=",token_bank_ce,flush=True)
                 # print("token_bank_pe=",token_bank_pe,flush=True)
                 break
@@ -1093,6 +1122,7 @@ def get_option_tokens(nifty_bank="ALL"):
     
     
     if nifty_bank=="NIFTY" or nifty_bank=="ALL":
+        # alice.get_scrip_info(ins_nifty_ce)
         iLog(f"get_option_tokens(): ltp_nifty_ATM_CE={ltp_nifty_ATM_CE}")
         iLog(f"get_option_tokens(): ltp_nifty_ATM_PE={ltp_nifty_ATM_PE}")
     
@@ -1559,6 +1589,7 @@ strMsg = "Starting tick processing."
 iLog(strMsg,sendTeleMsg=True)
 
 
+
 # Test Zone
 #---------------------------
 # buy_bank_options("BANK_CE")
@@ -1612,7 +1643,7 @@ while True:
             get_realtime_config()
 
             # Print Nifty and BankNift positions and MTM 
-            strMsg = strMsg + f" POS(N,BN)=({pos_nifty}, {pos_bank}), MTM={MTM}" 
+            strMsg = strMsg + f" POS(N,BN)=({pos_nifty}, {pos_bank}), MTM={MTM} ltp_nifty_ATM_CE={ltp_nifty_ATM_CE} ltp_nifty_ATM_PE={ltp_nifty_ATM_PE} ltp_bank_ATM_CE={ltp_bank_ATM_CE} ltp_bank_ATM_PE={ltp_bank_ATM_PE}" 
 
             iLog(strMsg,sendTeleMsg=True)
 
@@ -1628,7 +1659,7 @@ while True:
                 elif signal=="S":
                     buy_bank_options("BANK_PE")
 
-
+                
             # ////////////////////////////////////////
             #           NIFTY Order Generation
             # ////////////////////////////////////////
@@ -1661,6 +1692,7 @@ while True:
                 close_all_orders()
                 processNiftyEOD = True    # Set this flag so that we don not repeatedely process this
  
+            
 
         if cur_HHMM > 1530 and cur_HHMM < 1532 :   # Exit the program post NSE closure
             # Reset trading flag for bank if bank is enabled on the instance
@@ -1674,7 +1706,7 @@ while True:
                 set_config_value("realtime","trade_nfo","1")
         
             savedata()      # Export dataframe data, both 
-            iLog("Close of the day. Exiting Algo... @ " + str(cur_HHMM),sendTeleMsg=True)
+            iLog(f"Close of the day. Exiting Algo {ORDER_TAG}... @{cur_HHMM} MTM={MTM}",sendTeleMsg=True,publishToChannel=True)
             sys.exit()
    
 
