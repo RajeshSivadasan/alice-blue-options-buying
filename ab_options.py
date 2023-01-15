@@ -22,8 +22,9 @@
 # v7.5.2 file_nifty name updated, added all_variables printing, removed logging in get_buy_sell()
 # v7.5.3 Fixed KeyError: 'NOrdNo' in buy_nifty_options() line 594 
 # v7.5.4 Publish to channel functionality added. channel_is is @channel name from the channel link. e.g if channel link is https://t.me/mychannelname then channel_id will be @mychannelname, Added messages in the algo for publishing performance data to the channel, Included option name in the signal log
+# v7.5.5 Fixed messages not getting logged in case of MIS orders 
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.5.4" 
+version = "7.5.5" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -630,7 +631,7 @@ def buy_nifty_options(strMsg):
                 else:
                     strMsg=strMsg + f' buy_nifty() 3rd BO Failed. {order}'
 
-            iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
+        iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
 
 def buy_bank_options(strMsg):
     '''Buy Banknifty options '''
@@ -737,7 +738,7 @@ def buy_bank_options(strMsg):
                 else:
                     strMsg=strMsg + f" buy_bank() 3rd BO Failed. {order}" 
 
-            iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
+        iLog(strMsg,sendTeleMsg=True,publishToChannel=True)
 
 def subscribe_ins():
     global alice,ins_nifty,ins_bank
