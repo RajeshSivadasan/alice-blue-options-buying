@@ -10,7 +10,6 @@
 ```python3 ab_options.py```
 
 Below are the settings with default values and their descriptions for the .ini file:
-
 <br>[tokens]
 <br>uid = XXXXXX  (Alice Blue UserID/Client ID)
 <br>pwd = XXXXXX  (Password)
