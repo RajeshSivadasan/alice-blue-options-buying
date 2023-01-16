@@ -23,7 +23,7 @@ Below are the settings with default values and their descriptions for the .ini f
 <br>enable_bg_process = 1 (Activates the background process which you can interact with to update the realtime algo settings)
 <br>log_to_file = 1 (Enable logging to the log file)
 
-<br>[realtime]  (Below are the realtime settings which can be changed during the live market and will be captured by the Algo)
+<br>[realtime]  (Below are the realtime settings which can be changed during the live market also and will be captured by the Algo)
 <br>trade_nfo = 1 (Enable(1)/Disable(0) Nifty trading)
 <br>trade_bank = 1  (Enable(1)/Disable(0) BankNifty trading)
 <br>enablebo2_nifty = 0 (Enable(1)/Disable(0) second Bracket Order for Nifty)
