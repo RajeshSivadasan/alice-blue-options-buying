@@ -41,27 +41,26 @@ Below are the settings with default values and their descriptions for the .ini f
 <br>bank_bo1_qty = 25 (Bracket Order quantity for the first BankNifty Bracket Order)
 <br>bank_bo2_qty = 25 (Bracket Order quantity for the second BankNifty Bracket Order)
 <br>bank_bo3_qty = 25 (Bracket Order quantity for the second BankNifty Bracket Order)
-<br>sl_buffer = 5 
-<br>nifty_ord_type = BO
-<br>bank_ord_type = BO
-<br>nifty_limit_price_offset = -5
-<br>bank_limit_price_offset = -10
-<br>nifty_strike_ce_offset = -200
-<br>nifty_strike_pe_offset = 200
-<br>bank_strike_ce_offset = -100
-<br>bank_strike_pe_offset = 100
+<br>nifty_ord_type = BO (Nifty Order Type. BO/MIS Bracket Order or MIS order)
+<br>bank_ord_type = BO  (BankNifty Order Type. BO/MIS Bracket Order or MIS order)
+<br>nifty_limit_price_offset = -10  (Price to be added to the Nifty LTP when the signal is generated)
+<br>bank_limit_price_offset = -30 (Price to be added to the BankNifty LTP when the signal is generated)
+<br>nifty_strike_ce_offset = -200 (Strike to be added to ATM Strike price for Nifty Call Options)
+<br>nifty_strike_pe_offset = 200  (Strike to be added to ATM Strike price for Nifty Put Options)
+<br>bank_strike_ce_offset = -100  (Strike to be added to ATM Strike price for BankNifty Call Options)
+<br>bank_strike_pe_offset = 100 (Strike to be added to ATM Strike price for BankNifty Put Options)
 
 <br>[info]
-<br>olhc_duration = 3
-<br>nifty_lot_size = 50
-<br>bank_lot_size = 25
-<br>nifty_tgt1 = 20.0
-<br>nifty_tgt2 = 100.0
-<br>nifty_tgt3 = 300.0
+<br>olhc_duration = 3 (Candle time interval in minutes e.g 3 for 3min candle. Min recommended is 2)
+<br>nifty_lot_size = 50 (Standard Exchange lot size for Nifty)
+<br>bank_lot_size = 25  (Standard Exchange lot size for BankNifty)
+<br>nifty_tgt1 = 20.0 (First target points above Limit Price to be achieved for Nifty)
+<br>nifty_tgt2 = 100.0  (Second target points above Limit Price to be achieved for Nifty, ensure enablebo2_nifty=1 for this to work)
+<br>nifty_tgt3 = 300.0  (Third target points above Limit Price to be achieved for Nifty, ensure enablebo3_nifty=1 for this to work)
 <br>bank_tgt1 = 20.0
 <br>bank_tgt2 = 100.0
 <br>bank_tgt3 = 600.0
-<br>nifty_tsl = 40
+<br>nifty_tsl = 40 
 <br>bank_tsl = 40
 <br>nifty_sqoff_time = 1515
 <br>use_rsi = 1
