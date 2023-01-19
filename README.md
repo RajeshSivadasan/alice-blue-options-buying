@@ -80,7 +80,7 @@ Below are the settings with default values and their descriptions for the .ini f
 <br>nifty_trade_start_time = 920
 <br>nifty_trade_end_time = 1440
 <br>nifty_no_trade_zones = [(900,925),(1100,1330)]
-<br>sl_wait_time = 100
+<br>sl_wait_time = 1260 (Seconds till algo needs to wait for the limit order to be completed post which the order would be cancelled. Default is 21 mins/1260 seconds)
 <br>nifty_limit_price_low = 50
 <br>nifty_limit_price_high = 400
 <br>bank_limit_price_low = 50
