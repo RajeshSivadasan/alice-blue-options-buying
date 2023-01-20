@@ -24,8 +24,12 @@
 # v7.5.4 Publish to channel functionality added. channel_is is @channel name from the channel link. e.g if channel link is https://t.me/mychannelname then channel_id will be @mychannelname, Added messages in the algo for publishing performance data to the channel, Included option name in the signal log
 # v7.5.5 Fixed messages not getting logged in case of MIS orders
 # v7.5.6 Fixed KeyError: 'data' @ line 451, changed get_options() to wait till ce/pe ltp appears, removed mkt timimgs check from the loop and moved it before it  
+# v7.5.7 check_orders() tsl print changes
+# v7.5.8 Removed sl_buffer parameter as its not used. SL to be adjusted using the SL parameters;
+# v7.5.9 Fixed expiry date calculation issue due to datetime module
+# 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.5.6" 
+version = "7.5.9" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -51,7 +55,6 @@ version = "7.5.6"
 # Check use of float in place_order_BO() as it is working in ab.py without it
 # Instead of check_trade_time_zone() plan for no_trade_zone() 
 # Update Contract Symbol ab.update_contract_symbol(). If last friday is holiday this code dosent run and the symbol is not updated and the program fails
-# Consider seperate sl_buffer for nifty and bank in get_trade_price()
 # Check if order parameters like order type and others can be paramterised
 # Look at close pending orders, my not be efficient, exception handling and all
 # WebSocket disconnection and subscription/tick loss issue. Upgraded the package  
@@ -182,7 +185,6 @@ nifty_bo3_qty = int(cfg.get("realtime", "nifty_bo3_qty"))
 bank_bo1_qty = int(cfg.get("realtime", "bank_bo1_qty"))
 bank_bo2_qty = int(cfg.get("realtime", "bank_bo2_qty"))
 bank_bo3_qty = int(cfg.get("realtime", "bank_bo3_qty"))
-sl_buffer = int(cfg.get("realtime", "sl_buffer"))
 nifty_ord_type = cfg.get("realtime", "nifty_ord_type")      # BO / MIS
 bank_ord_type = cfg.get("realtime", "bank_ord_type")      # MIS / BO
 
@@ -240,7 +242,7 @@ rsi_sell_param = int(cfg.get("info", "rsi_sell_param"))
 
 
 
-all_variables = f"enableBO2_nifty={enableBO2_nifty}\nenableBO3_nifty={enableBO3_nifty}\nenableBO2_bank={enableBO2_bank}\nenableBO3_bank={enableBO3_bank}\ntrade_nfo={trade_nfo}\ntrade_bank={trade_bank}\nnifty_sl={nifty_sl}\nbank_sl={bank_sl}\nmtm_sl={mtm_sl}\nmtm_target={mtm_target}\nnifty_bo1_qty={nifty_bo1_qty}\nnifty_bo2_qty={nifty_bo2_qty}\nnifty_bo3_qty={nifty_bo3_qty}\nbank_bo1_qty={bank_bo1_qty}\nbank_bo2_qty={bank_bo2_qty}\nbank_bo3_qty={bank_bo3_qty}\nsl_buffer={sl_buffer}\nnifty_ord_type={nifty_ord_type}\nbank_ord_type={bank_ord_type}\nnifty_limit_price_offset={nifty_limit_price_offset}\nbank_limit_price_offset={bank_limit_price_offset}\nnifty_strike_ce_offset={nifty_strike_ce_offset}\nnifty_strike_pe_offset={nifty_strike_pe_offset}\nbank_strike_ce_offset={bank_strike_ce_offset}\nbank_strike_pe_offset={bank_strike_pe_offset}\nweekly_expiry_holiday_dates={weekly_expiry_holiday_dates}\nnifty_tgt1={nifty_tgt1}\nnifty_tgt2={nifty_tgt2}\nnifty_tgt3={nifty_tgt3}\nbank_tgt1={bank_tgt1}\nbank_tgt2={bank_tgt2}\nbank_tgt3={bank_tgt3}\nolhc_duration={olhc_duration}\nnifty_sqoff_time={nifty_sqoff_time}\nnifty_tsl={nifty_tsl}\nbank_tsl={bank_tsl}\nenable_bank={enable_bank}\nenable_NFO={enable_NFO}\nenable_bank_data={enable_bank_data}\nenable_NFO_data={enable_NFO_data}\nfile_nifty={file_nifty}\nfile_bank={file_bank}\nno_of_trades_limit={no_of_trades_limit}\npending_ord_limit_mins={pending_ord_limit_mins}\nnifty_trade_start_time={nifty_trade_start_time}\nnifty_trade_end_time={nifty_trade_end_time}\nsl_wait_time={sl_wait_time}\nnifty_limit_price_low={nifty_limit_price_low}\nnifty_limit_price_high={nifty_limit_price_high}\nbank_limit_price_low={bank_limit_price_low}\nbank_limit_price_high={bank_limit_price_high}\nuse_rsi={use_rsi}\nrsi_period={rsi_period}\nrsi_buy_param={rsi_buy_param}\nrsi_sell_param={rsi_sell_param}"
+all_variables = f"enableBO2_nifty={enableBO2_nifty}\nenableBO3_nifty={enableBO3_nifty}\nenableBO2_bank={enableBO2_bank}\nenableBO3_bank={enableBO3_bank}\ntrade_nfo={trade_nfo}\ntrade_bank={trade_bank}\nnifty_sl={nifty_sl}\nbank_sl={bank_sl}\nmtm_sl={mtm_sl}\nmtm_target={mtm_target}\nnifty_bo1_qty={nifty_bo1_qty}\nnifty_bo2_qty={nifty_bo2_qty}\nnifty_bo3_qty={nifty_bo3_qty}\nbank_bo1_qty={bank_bo1_qty}\nbank_bo2_qty={bank_bo2_qty}\nbank_bo3_qty={bank_bo3_qty}\nnifty_ord_type={nifty_ord_type}\nbank_ord_type={bank_ord_type}\nnifty_limit_price_offset={nifty_limit_price_offset}\nbank_limit_price_offset={bank_limit_price_offset}\nnifty_strike_ce_offset={nifty_strike_ce_offset}\nnifty_strike_pe_offset={nifty_strike_pe_offset}\nbank_strike_ce_offset={bank_strike_ce_offset}\nbank_strike_pe_offset={bank_strike_pe_offset}\nweekly_expiry_holiday_dates={weekly_expiry_holiday_dates}\nnifty_tgt1={nifty_tgt1}\nnifty_tgt2={nifty_tgt2}\nnifty_tgt3={nifty_tgt3}\nbank_tgt1={bank_tgt1}\nbank_tgt2={bank_tgt2}\nbank_tgt3={bank_tgt3}\nolhc_duration={olhc_duration}\nnifty_sqoff_time={nifty_sqoff_time}\nnifty_tsl={nifty_tsl}\nbank_tsl={bank_tsl}\nenable_bank={enable_bank}\nenable_NFO={enable_NFO}\nenable_bank_data={enable_bank_data}\nenable_NFO_data={enable_NFO_data}\nfile_nifty={file_nifty}\nfile_bank={file_bank}\nno_of_trades_limit={no_of_trades_limit}\npending_ord_limit_mins={pending_ord_limit_mins}\nnifty_trade_start_time={nifty_trade_start_time}\nnifty_trade_end_time={nifty_trade_end_time}\nsl_wait_time={sl_wait_time}\nnifty_limit_price_low={nifty_limit_price_low}\nnifty_limit_price_high={nifty_limit_price_high}\nbank_limit_price_low={bank_limit_price_low}\nbank_limit_price_high={bank_limit_price_high}\nuse_rsi={use_rsi}\nrsi_period={rsi_period}\nrsi_buy_param={rsi_buy_param}\nrsi_sell_param={rsi_sell_param}"
 iLog("Settings Used:\n"+all_variables,sendTeleMsg=True,publishToChannel=True)
 # Lists for storing Nifty50 and BankNifty LTPs
 lst_nifty_ltp = []
@@ -297,7 +299,7 @@ def get_realtime_config():
     '''This procedure can be called during execution to get realtime values from the .ini file'''
 
     global trade_nfo, trade_bank, enableBO2_bank, enableBO2_nifty, enableBO3_nifty,nifty_limit_price_offset,bank_limit_price_offset\
-    ,mtm_sl,mtm_target, cfg, nifty_sl, bank_sl, export_data, sl_buffer, nifty_ord_type, bank_ord_type\
+    ,mtm_sl,mtm_target, cfg, nifty_sl, bank_sl, export_data, nifty_ord_type, bank_ord_type\
     ,nifty_strike_ce_offset, nifty_strike_pe_offset, bank_strike_ce_offset, bank_strike_pe_offset
 
     cfg.read(INI_FILE)
@@ -312,7 +314,6 @@ def get_realtime_config():
     export_data = float(cfg.get("realtime", "export_data"))
     mtm_sl = float(cfg.get("realtime", "mtm_sl"))
     mtm_target  = float(cfg.get("realtime", "mtm_target"))
-    sl_buffer = int(cfg.get("realtime", "sl_buffer"))
     nifty_ord_type = cfg.get("realtime", "nifty_ord_type")      # BO / MIS
     bank_ord_type = cfg.get("realtime", "bank_ord_type")        # MIS / BO
 
@@ -378,6 +379,7 @@ def place_sl_order(main_order_id, nifty_bank, ins_opt):
     while wait_time > 0:
         print(f"wait_time={wait_time}",flush=True)
 
+        # Check if main order is completed
         try:
             main_ord = [ord for ord in alice.get_order_history('') if (ord['Nstordno']==main_order_id and ord['Status']=='complete') ] 
             if main_ord == []:
@@ -1045,6 +1047,7 @@ def get_option_tokens(nifty_bank="ALL"):
 
                 tmp_ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
                 tmp_ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+            
 
                 if ins_nifty_ce != tmp_ins_nifty_ce:
                     ins_nifty_ce = tmp_ins_nifty_ce
@@ -1201,23 +1204,24 @@ def check_orders():
     # dict_sl_orders => key=order ID : value = [0-token, 1-target price, 2-instrument, 3-quantity, 4-SL Price]
     tsl = bank_tsl  #+ bank_sl
     # iLog(f"tsl={tsl}")
+    
     for oms_order_id, value in dict_sl_orders.items():
-        
+        opt_name = value[2][3]
         ltp = dict_ltp[str(value[0])]
         if value[2][2][:5]=="BANKN":    #Check if the instrument is nifty or banknifty and get the tsl accordingly
             tsl = bank_tsl
         else:
             tsl = nifty_tsl
         
-        iLog(f"In check_orders(): oms_order_id={oms_order_id}, ltp={ltp}, Target={float(value[1])}, bank_tsl={bank_tsl}, SL Price={float(value[4])}")
+        iLog(f"In check_orders(): {opt_name} oms_order_id={oms_order_id}, ltp={ltp}, Target={float(value[1])}, tsl={tsl}, SL Price={float(value[4])}")
         #Set Target Price : current ltp > target price
-        if ltp > value[1] :
+        if ltp > value[1]+1 :
             try:
                 alice.modify_order(TransactionType.Sell,value[2],ProductType.Intraday,oms_order_id,OrderType.Limit,value[3], price=float(value[1]))
-                iLog(f"In check_orders(): BullsEye! Target price for OrderID {oms_order_id} modified to {value[1]}")
+                iLog(f"In check_orders(): {opt_name} BullsEye! Target price for OrderID {oms_order_id} modified to {value[1]}")
             
             except Exception as ex:
-                iLog("In check_orders(): Exception occured during Target price modification = " + str(ex),3)
+                iLog(f"In check_orders(): {opt_name} Exception occured during Target price modification = {ex}",3)
 
         #Set StopLoss(TargetPrice) to Trailing SL
         elif (ltp - value[4]) > tsl :
@@ -1226,10 +1230,10 @@ def check_orders():
                 alice.modify_order(TransactionType.Sell,value[2],ProductType.Intraday,oms_order_id,OrderType.StopLossLimit,value[3], tsl_price,tsl_price )
                 #Update dictionary with the new SL price
                 dict_sl_orders.update({oms_order_id:[value[0], value[1], value[2], value[3],tsl_price]} )
-                iLog(f"In check_orders(): TSL for OrderID {oms_order_id} modified to {tsl_price}")
+                iLog(f"In check_orders(): {opt_name} TSL for OrderID {oms_order_id} modified to {tsl_price}")
                 # \n dict_sl_orders={dict_sl_orders}
             except Exception as ex:
-                iLog("In check_orders(): Exception occured during TSL modification = " + str(ex),3)
+                iLog(f"In check_orders(): {opt_name} Exception occured during TSL modification = {ex}",3)
 
 def get_buy_sell(df_data):
 
@@ -1535,7 +1539,7 @@ ins_bank = alice.get_instrument_by_symbol('INDICES', 'NIFTY BANK')
 expiry_date = date.today() + timedelta( (3-date.today().weekday()) % 7 )
 # Reduce one day if thursday is a holiday
 if str(expiry_date) in weekly_expiry_holiday_dates :
-    expiry_date = expiry_date - datetime.timedelta(days=1)
+    expiry_date = expiry_date - timedelta(days=1)
 
 iLog(f"expiry_date={expiry_date}")
 
@@ -1731,4 +1735,3 @@ while True:
             
     # Check MTM and stop trading if limit reached; This can be parameterised to % gain/loss
     MTM = check_MTM_Limit()
-
