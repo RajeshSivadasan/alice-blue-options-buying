@@ -27,9 +27,13 @@
 # v7.5.7 check_orders() tsl print changes
 # v7.5.8 Removed sl_buffer parameter as its not used. SL to be adjusted using the SL parameters;
 # v7.5.9 Fixed expiry date calculation issue due to datetime module
+# v7.6.0 Debug in progress. Added comments to check_MTM_limit. Neeed to find a way to check if SL price is below ltp. 
+# Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
+# May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
+
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.5.9" 
+version = "7.6.0" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -382,6 +386,7 @@ def place_sl_order(main_order_id, nifty_bank, ins_opt):
         # Check if main order is completed
         try:
             main_ord = [ord for ord in alice.get_order_history('') if (ord['Nstordno']==main_order_id and ord['Status']=='complete') ] 
+            print(f"main_ord={main_ord}",flush=True)
             if main_ord == []:
                 pass
             else:
@@ -863,7 +868,7 @@ def check_MTM_Limit():
             df_pos = pd.DataFrame(pos)
             # print("df_pos=",df_pos)
             if df_pos.empty:
-                 print("check_MTM_Limit(): Unable to fetch position", flush = True)
+                 iLog("check_MTM_Limit(): Unable to fetch position from alice.get_netwise_positions()")
             else:
                 # MtoM = sum(pd.to_numeric(df_pos.MtoM.str.replace(",","")))
                 pos_nifty = sum(pd.to_numeric(df_pos[df_pos.Symbol=='NIFTY'].Netqty))
@@ -908,9 +913,10 @@ def check_MTM_Limit():
     
     except Exception as ex:
         mtm = -1.0  # To ignore in calculations in case of errors
-        print("check_MTM_Limit(): Exception=",ex, flush = True)
+        iLog(f"check_MTM_Limit(): Exception={ex}")
     
-    # print(mtm,mtm_sl,mtm_target,flush=True)
+    iLog(f"check_MTM_Limit(): mtm={mtm} mtm_sl={mtm_sl} mtm_target={mtm_target} trade_bank={trade_bank} trade_nfo={trade_nfo}")
+
 
     # Enable trade flags based on MTM limits set
     if (mtm < mtm_sl or mtm > mtm_target) and (trade_bank==1 or trade_nfo==1): # or mtm>mtm_target:
@@ -932,7 +938,8 @@ def check_MTM_Limit():
             strMsg = "check_MTM_Limit(): Trade flags set to false. May be overwritten. Could not update ini file. Ex="+str(ex)
             iLog(strMsg,3)
 
-        iLog("check_MTM_Limit(): MTM {} out of SL or Target range. Squareoff will be triggered for MIS orders...".format(mtm),2,sendTeleMsg=True)
+
+        iLog(f"check_MTM_Limit(): MTM {mtm} {'less than SL' if mtm<mtm_sl else 'greater than Target' }. Squareoff will be triggered for MIS orders...",2,sendTeleMsg=True)
 
         close_all_orders("ALL")
 
@@ -1565,9 +1572,11 @@ alice.start_websocket(socket_open_callback=open_callback, socket_close_callback=
 
 # Check Websocket open status
 while(socket_opened==False):
+    sleep(5)
+    iLog("Awaiting websocket connectivity")
     pass
 
-
+iLog("websocket started...")
 
 # Get Previous day saved data if available
 try:
