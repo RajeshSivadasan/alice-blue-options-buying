@@ -49,6 +49,7 @@ Below are the settings with default values and their descriptions for the .ini f
 <br>nifty_strike_pe_offset = 200  (Strike to be added to ATM Strike price for Nifty Put Options)
 <br>bank_strike_ce_offset = -100  (Strike to be added to ATM Strike price for BankNifty Call Options)
 <br>bank_strike_pe_offset = 100 (Strike to be added to ATM Strike price for BankNifty Put Options)
+<br>tick_processing_sleep_secs = 9 (Wait or sleep time for the main tick processing loop. Can reduce if the processing time alert is displayed.) 
 
 <br>[info]
 <br>olhc_duration = 3 (Candle time interval in minutes e.g 3 for 3min candle. Min recommended is 2)
