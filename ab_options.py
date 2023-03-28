@@ -29,12 +29,15 @@
 # v7.5.9 Fixed expiry date calculation issue due to datetime module
 # v7.6.0 Debug in progress. Added comments to check_MTM_limit() and check_orders(). Neeed to find a way to check if SL price is below ltp. 
 # v7.6.1 Additional condition added in check_orders() to handle order fetch issues from the API 
+# v7.6.2 Handled exception in check_orders() while processing alice.get_order_history()
+# v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
+
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
 # Find a way to print all the setting using configparser loop
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.6.1" 
+version = "7.6.3" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -1167,16 +1170,12 @@ def check_orders():
     try:
         # orders = alice.get_order_history('')['data']['pending_orders']
         orders = alice.get_order_history('')
-        print(f"check_orders(): alice.get_order_history -> orders {orders} \ntype(orders) = {type(orders)}")
+        # print(f"check_orders(): alice.get_order_history -> orders {orders} \ntype(orders) = {type(orders)}")
         if type(orders)==list:
             df_orders = pd.DataFrame(orders)
-            # print("df_orders=",df_orders)
 
             df_orders = df_orders[df_orders.Status=='open'].ExchOrdID 
             
-            # print("df_orders2:\n",df_orders)
-            # print("dict_sl_orders:\n",dict_sl_orders)
-
             if not df_orders.empty:
                 for key, value in dict_sl_orders.items():
                     order_found = False
@@ -1189,29 +1188,15 @@ def check_orders():
                         dict_sl_orders.pop(key)
                         iLog(f"check_orders(): Removed order {key} from dict_sl_orders")
             else:
-                iLog(f"check_orders(): No open orders found.")
+                dict_sl_orders.clear()
+                iLog(f"check_orders(): No open orders found. Cleared dict_sl_orders.")
 
-        # if orders:
-        #     # iLog(f"check_orders():orders={orders}\n dict_sl_orders={dict_sl_orders}")   #To be commented later
-        #     # loop through Sl orders dict and check if its in the pending order list 
-        #     for key, value in dict_sl_orders.items():
-        #         order_found = False
-        #         for order in orders:
-        #             if key == order['oms_order_id']:
-        #                 order_found = True
-        #                 break
-                
-        #         # remove the order from sl dict which is not pending
-        #         if not order_found:
-        #             dict_sl_orders.pop(key)
-        #             iLog(f"In check_orders(): Removed order {key} from dict_sl_orders")
-        
         else:
             iLog(f"check_orders(): No orders found. Clearing the internal order dict.")
             dict_sl_orders.clear()
         
-    except:
-        pass
+    except Exception as ex:
+        iLog(f"check_orders(): Exception Occured while processing alice.get_order_history. Exception = {ex}")
     
     
     # print("dict_ltp=",dict_ltp,flush=True)
