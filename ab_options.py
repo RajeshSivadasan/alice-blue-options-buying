@@ -31,6 +31,7 @@
 # v7.6.1 Additional condition added in check_orders() to handle order fetch issues from the API 
 # v7.6.2 Handled exception in check_orders() while processing alice.get_order_history()
 # v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
+# v7.6.4 Added more logging in place_sl_order
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
@@ -402,20 +403,6 @@ def place_sl_order(main_order_id, nifty_bank, ins_opt):
                 order_executed = True
                 break
         
-            # lst_complete_orders=[ord for ord in alice.get_order_history('') if ord['Status']=='complete']
-            # # orders = alice.get_order_history()["data"]["completed_orders"]
-            # for ord in lst_complete_orders:
-            #     if ord["NOrdNo"]==main_order_id:
-            #         # print(f"In place_sl_order(): Order Details =",ord, flush=True)
-            #         # Order may be rejected as well
-            #         if ord["Status"]=="complete": 
-            #             lt_price = ord["Prc"]
-            #             order_executed = True
-            #             break   #break for loop
-            #         elif ord["Status"]=="rejected":
-            #             iLog(f"Order {main_order_id} rejected. Please check funds or any other issue.",sendTeleMsg=True)
-            #             return   #Exit out of the procedure
-
         except Exception as ex:
             iLog(f"place_sl_order(): Exception={ex}")
         
@@ -463,13 +450,13 @@ def place_sl_order(main_order_id, nifty_bank, ins_opt):
             order = place_order_MIS(TransactionType.Sell, ins_opt, bo1_qty, OrderType.StopLossLimit, sl_price)
             # if order['status'] == 'success':
             if order['stat'] == 'Ok':
-                strMsg = f"In place_sl_order(2): MIS SL2 order_id={order}, StopLoss Price={sl_price}"
+                strMsg = strMsg + f"In place_sl_order(2): MIS SL2 order_id={order}, StopLoss Price={sl_price}"
                 #update dict with SL order ID : [0-token, 1-target price, 2-instrument, 3-quantity, 4-SL Price]
                 dict_sl_orders.update({order['NOrdNo']:[ins_opt[1], lt_price+tgt2, ins_opt, bo1_qty, sl_price] } )
                 print("place_sl_order(2): dict_sl_orders=",dict_sl_orders, flush=True)
             else:
                 # {'stat': 'Not_Ok', 'Emsg': 'Not able to Retrieve  PlaceOrder '}
-                strMsg = f"In place_sl_order(2): MIS SL2 Order Failed.={order}"
+                strMsg = strMsg + f"In place_sl_order(2): MIS SL2 Order Failed.={order}"
 
 
 
