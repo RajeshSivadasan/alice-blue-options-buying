@@ -31,14 +31,14 @@
 # v7.6.1 Additional condition added in check_orders() to handle order fetch issues from the API 
 # v7.6.2 Handled exception in check_orders() while processing alice.get_order_history()
 # v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
-# v7.6.4 Added more logging in place_sl_order
+# v7.6.4 close_all_orders() called immediately after signal is generated. Added more logging in place_sl_order
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
 # Find a way to print all the setting using configparser loop
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.6.3" 
+version = "7.6.4" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -535,6 +535,10 @@ def buy_nifty_options(strMsg):
     df_nifty.iat[-1,5] = "B"  # v1.1 set signal column value
 
 
+    # Cancel pending buy orders and close existing sell orders if any
+    close_all_orders("NIFTY")
+
+
     # strMsg == NIFTY_CE | NIFTY_PE 
     lt_price, nifty_sl = get_trade_price_options(strMsg)   # Get trade price and SL for BO1 
    
@@ -578,8 +582,6 @@ def buy_nifty_options(strMsg):
             iLog(strMsg,2,sendTeleMsg=True)
             return
 
-        # Cancel pending buy orders and close existing sell orders if any
-        close_all_orders("NIFTY")
         
         if nifty_ord_type == "MIS" : 
             #---- Intraday order (MIS) , Market Order
@@ -641,13 +643,14 @@ def buy_bank_options(strMsg):
 
     df_bank.iat[-1,5] = "B"  # v1.1 set signal column value
 
+    # Cancel pending buy orders and close existing sell orders if any
+    close_all_orders("BANK")
 
     # strMsg == CE | PE 
     lt_price, bank_sl = get_trade_price_options(strMsg)   # Get trade price and SL for BO1 
    
     df_bank.iat[-1,6] = bank_sl  # v3.7 set sl column value. This is only for BO1; rest BOs will different SLs 
 
-    # iLog(strMsg)    #can be commented later
 
     #Warning: No initialisation done
     if strMsg == "BANK_CE" :
@@ -685,8 +688,6 @@ def buy_bank_options(strMsg):
             iLog(strMsg,2,sendTeleMsg=True)
             return
 
-        # Cancel pending buy orders and close existing sell orders if any
-        close_all_orders("BANK")
         
         if bank_ord_type == "MIS" : 
             #---- Intraday order (MIS) , Market Order
