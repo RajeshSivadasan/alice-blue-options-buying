@@ -32,13 +32,14 @@
 # v7.6.2 Handled exception in check_orders() while processing alice.get_order_history()
 # v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
 # v7.6.4 close_all_orders() called immediately after signal is generated. Added more logging in place_sl_order
+# v7.6.5 close_all_orders(). Enabled closure of previous orders while creating new positions. Commented lot of logging.
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
 # Find a way to print all the setting using configparser loop
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.6.4" 
+version = "7.6.5" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -774,18 +775,18 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
     #Square off MIS Positions if any
     if (opt_index=='NIFTY' or opt_index=='ALL') and nifty_ord_type == "MIS":
         if pos_nifty > 0 :
-            iLog(f"Closing Nifty Open Positions pos_nifty={pos_nifty} - Execution Commented",2,sendTeleMsg=True)   
-            # place_order_MIS(TransactionType.Sell, ins_nifty_opt,pos_nifty)
-            # needs to be managed with SL orders and cap on number of trades and MTM limit
+            iLog(f"Closing Nifty Open Positions pos_nifty={pos_nifty}",2,sendTeleMsg=True)   
+            place_order_MIS(TransactionType.Sell, ins_nifty_opt,pos_nifty)
+            # SL orders should be cancelled in the below try...catch block
         elif pos_nifty < 0 :
             iLog(f"Option position cannot be negative pos_nifty={pos_nifty}",2,sendTeleMsg=True)
             # place_order_MIS(TransactionType.Buy, ins_nifty_opt, abs(pos_nifty))
 
     if (opt_index=='BANK'  or opt_index=='ALL') and nifty_ord_type == "MIS":
         if pos_bank > 0 :
-            iLog(f"Closing BankNifty Open Positions pos_bank={pos_bank} - Execution Commented",2,sendTeleMsg=True)   
-            # place_order_MIS(TransactionType.Sell, ins_bank_opt ,pos_bank)
-            # needs to be managed with SL orders and cap on number of trades and MTM limit
+            iLog(f"Closing BankNifty Open Positions pos_bank={pos_bank}",2,sendTeleMsg=True)   
+            place_order_MIS(TransactionType.Sell, ins_bank_opt ,pos_bank)
+            #  SL orders should be cancelled in the below try...catch block
         elif pos_bank < 0 :
             iLog(f"Option position cannot be negative pos_bank={pos_bank}",2,sendTeleMsg=True)
 
@@ -910,7 +911,7 @@ def check_MTM_Limit():
         mtm = -1.0  # To ignore in calculations in case of errors
         iLog(f"check_MTM_Limit(): Exception={ex}")
     
-    iLog(f"check_MTM_Limit(): mtm={mtm} mtm_sl={mtm_sl} mtm_target={mtm_target} trade_bank={trade_bank} trade_nfo={trade_nfo}")
+    # iLog(f"check_MTM_Limit(): mtm={mtm} mtm_sl={mtm_sl} mtm_target={mtm_target} trade_bank={trade_bank} trade_nfo={trade_nfo}")
 
 
     # Enable trade flags based on MTM limits set
@@ -1177,10 +1178,10 @@ def check_orders():
                         iLog(f"check_orders(): Removed order {key} from dict_sl_orders")
             else:
                 dict_sl_orders.clear()
-                iLog(f"check_orders(): No open orders found. Cleared dict_sl_orders.")
+                # iLog(f"check_orders(): No open orders found. Cleared dict_sl_orders.")
 
         else:
-            iLog(f"check_orders(): No orders found. Clearing the internal order dict.")
+            # iLog(f"check_orders(): No orders found. Clearing the internal order dict.")
             dict_sl_orders.clear()
         
     except Exception as ex:
