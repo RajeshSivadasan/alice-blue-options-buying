@@ -33,13 +33,15 @@
 # v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
 # v7.6.4 close_all_orders() called immediately after signal is generated. Added more logging in place_sl_order
 # v7.6.5 close_all_orders(). Enabled closure of previous orders while creating new positions. Commented lot of logging.
+# v7.6.6 get_option_tokens() fetching older CE/PE. unsbscribed the tokens and reset the ltp's. Logged the current and previous instruments.
+
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
 # Find a way to print all the setting using configparser loop
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.6.5" 
+version = "7.6.6" 
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -946,7 +948,7 @@ def get_trade_price_options(bank_nifty):
     buy_sell=BUY/SELL, bo_level or Order execution level = 1(default means last close),2,3 and 0 for close -1 for market order
     '''
 
-    iLog(f"In get_trade_price_options():{bank_nifty}")
+    iLog(f"get_trade_price_options():{bank_nifty}")
 
     lt_price = 0.0
 
@@ -1023,15 +1025,15 @@ def check_trade_time_zone(bank_nifty="NIFTY"):
     return result
 
 def get_option_tokens(nifty_bank="ALL"):
-    '''This procedure sets the current option tokens to the latest ATM tokens
+    '''This procedure sets the current option tokens to the latest ATM tokens and resets the ltp for CE/PE
     nifty_bank="NIFTY" | "BANK" | "ALL"
     '''
-    
-    iLog(f"get_option_tokens():{nifty_bank}")
-
     #WIP
-    global token_nifty_ce, token_nifty_pe, ins_nifty_ce, ins_nifty_pe, \
-        token_bank_ce, token_bank_pe, ins_bank_ce, ins_bank_pe
+    global token_nifty_ce, token_nifty_pe, ins_nifty_ce, ins_nifty_pe, token_bank_ce, token_bank_pe, ins_bank_ce, ins_bank_pe,\
+        ltp_nifty_ATM_CE, ltp_nifty_ATM_PE, ltp_bank_ATM_CE, ltp_bank_ATM_PE
+
+    iLog(f"get_option_tokens(): {nifty_bank}")
+
 
     intCounter = 3
 
@@ -1054,11 +1056,15 @@ def get_option_tokens(nifty_bank="ALL"):
             
 
                 if ins_nifty_ce != tmp_ins_nifty_ce:
+                    alice.unsubscribe([ins_nifty_ce])
+                    ltp_nifty_ATM_CE=0
                     ins_nifty_ce = tmp_ins_nifty_ce
                     token_nifty_ce = int(ins_nifty_ce[1])
                     alice.subscribe([ins_nifty_ce])
 
                 if ins_nifty_pe != tmp_ins_nifty_pe:
+                    alice.unsubscribe([ins_nifty_pe])
+                    ltp_nifty_ATM_PE=0
                     ins_nifty_pe = tmp_ins_nifty_pe
                     token_nifty_pe = int(ins_nifty_pe[1])
                     alice.subscribe([ins_nifty_pe])
@@ -1102,20 +1108,26 @@ def get_option_tokens(nifty_bank="ALL"):
                 tmp_ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
                 tmp_ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
 
-                
+                iLog(f"get_option_tokens(): ins_bank_ce={ins_bank_ce} tmp_ins_bank_ce={tmp_ins_bank_ce}")
+                iLog(f"get_option_tokens(): ins_bank_ce={ins_bank_pe} tmp_ins_bank_ce={tmp_ins_bank_pe}")
+
                 if ins_bank_ce!=tmp_ins_bank_ce:
+                    alice.unsubscribe([ins_bank_ce])
+                    ltp_bank_ATM_CE=0
                     ins_bank_ce=tmp_ins_bank_ce
                     token_bank_ce = int(ins_bank_ce[1])
                     alice.subscribe([ins_bank_ce])
                 
                 if ins_bank_pe!=tmp_ins_bank_pe:
+                    alice.unsubscribe([ins_bank_pe])
+                    ltp_bank_ATM_PE=0
                     ins_bank_pe=tmp_ins_bank_pe
                     token_bank_pe = int(ins_bank_pe[1])
                     alice.subscribe([ins_bank_pe])
 
 
                 iLog(f"get_option_tokens(): Selected ins_bank_ce={ins_bank_ce} ltp_bank_ATM_CE={ltp_bank_ATM_CE}")
-                iLog(f"get_option_tokens(): Selected ins_bank_pe={ins_bank_pe} ltp_bank_ATM_PE{ltp_bank_ATM_PE}")
+                iLog(f"get_option_tokens(): Selected ins_bank_pe={ins_bank_pe} ltp_bank_ATM_PE={ltp_bank_ATM_PE}")
 
 
                 if ltp_bank_ATM_CE <1 or ltp_bank_ATM_PE<1:
@@ -1125,8 +1137,6 @@ def get_option_tokens(nifty_bank="ALL"):
                     iLog(f"get_option_tokens(): ltp_bank_ATM_CE={ltp_bank_ATM_CE} ltp_bank_ATM_PE={ltp_bank_ATM_PE}")
                 else:
                     break
-                
-
 
 
             else:
