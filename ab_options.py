@@ -33,15 +33,17 @@
 # v7.6.3 dict_sl_orders.clear() / Clear internal orders dict if there are no open orders.
 # v7.6.4 close_all_orders() called immediately after signal is generated. Added more logging in place_sl_order
 # v7.6.5 close_all_orders(). Enabled closure of previous orders while creating new positions. Commented lot of logging.
-# v7.6.6 get_option_tokens() fetching older CE/PE. unsbscribed the tokens and reset the ltp's. Logged the current and previous instruments.
-
+# v7.6.6 get_option_tokens() fetching older CE/PE. unsubscribed the tokens and reset the ltp's. Logged the current and previous instruments.
+# v7.6.7 get_option_tokens()  call to alice.unsubscribed() failed due to empty instrument. Implemented try
+# v7.6.8 Added use_rsi_roc (RSI Rate of Change) enable disable flag in get_buy_sell(). Logging of close_all_orders MIS squareoff orders 
+version = "7.6.8" 
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
 # Find a way to print all the setting using configparser loop
 # 17070 : The Price is out of the LPP range
 # alice.get_scrip_info(ins_nifty_ce)
-version = "7.6.6" 
+
 
 ###### STRATEGY / TRADE PLAN #####
 # Trading Style     : Intraday
@@ -249,6 +251,7 @@ bank_limit_price_low = int(cfg.get("info", "bank_limit_price_low"))
 bank_limit_price_high = int(cfg.get("info", "bank_limit_price_high"))
 
 use_rsi = int(cfg.get("info", "use_rsi"))
+use_rsi_roc = int(cfg.get("info", "use_rsi_roc"))   #RSI Rate of Change
 rsi_period = int(cfg.get("info", "rsi_period"))
 rsi_buy_param = int(cfg.get("info", "rsi_buy_param"))
 rsi_sell_param = int(cfg.get("info", "rsi_sell_param"))
@@ -778,7 +781,8 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
     if (opt_index=='NIFTY' or opt_index=='ALL') and nifty_ord_type == "MIS":
         if pos_nifty > 0 :
             iLog(f"Closing Nifty Open Positions pos_nifty={pos_nifty}",2,sendTeleMsg=True)   
-            place_order_MIS(TransactionType.Sell, ins_nifty_opt,pos_nifty)
+            obj_ord=place_order_MIS(TransactionType.Sell, ins_nifty_opt,pos_nifty)
+            iLog(f"place_order_MIS NIFTY result = {obj_ord=}")
             # SL orders should be cancelled in the below try...catch block
         elif pos_nifty < 0 :
             iLog(f"Option position cannot be negative pos_nifty={pos_nifty}",2,sendTeleMsg=True)
@@ -787,7 +791,8 @@ def close_all_orders(opt_index="ALL",buy_sell="ALL",ord_open_time=0):
     if (opt_index=='BANK'  or opt_index=='ALL') and nifty_ord_type == "MIS":
         if pos_bank > 0 :
             iLog(f"Closing BankNifty Open Positions pos_bank={pos_bank}",2,sendTeleMsg=True)   
-            place_order_MIS(TransactionType.Sell, ins_bank_opt ,pos_bank)
+            obj_ord=place_order_MIS(TransactionType.Sell, ins_bank_opt ,pos_bank)
+            iLog(f"place_order_MIS BankNifty result = {obj_ord=}")
             #  SL orders should be cancelled in the below try...catch block
         elif pos_bank < 0 :
             iLog(f"Option position cannot be negative pos_bank={pos_bank}",2,sendTeleMsg=True)
@@ -1054,16 +1059,25 @@ def get_option_tokens(nifty_bank="ALL"):
                 tmp_ins_nifty_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
                 tmp_ins_nifty_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'NIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
             
-
+                iLog(f"get_option_tokens(): ins_nifty_ce={ins_nifty_ce} tmp_ins_nifty_ce={tmp_ins_nifty_ce}")
+                iLog(f"get_option_tokens(): ins_nifty_pe={ins_nifty_pe} tmp_ins_nifty_pe={tmp_ins_nifty_pe}")
+                
+                
                 if ins_nifty_ce != tmp_ins_nifty_ce:
-                    alice.unsubscribe([ins_nifty_ce])
+                    try:
+                        alice.unsubscribe([ins_nifty_ce])
+                    except Exception as ex:
+                        iLog(f"get_option_tokens(): Exception during ins_nifty_ce unsusbsribe. {ex}")
                     ltp_nifty_ATM_CE=0
                     ins_nifty_ce = tmp_ins_nifty_ce
                     token_nifty_ce = int(ins_nifty_ce[1])
                     alice.subscribe([ins_nifty_ce])
 
                 if ins_nifty_pe != tmp_ins_nifty_pe:
-                    alice.unsubscribe([ins_nifty_pe])
+                    try:
+                        alice.unsubscribe([ins_nifty_pe])
+                    except Exception as ex:
+                        iLog(f"get_option_tokens(): Exception during ins_nifty_pe unsusbsribe. {ex}")
                     ltp_nifty_ATM_PE=0
                     ins_nifty_pe = tmp_ins_nifty_pe
                     token_nifty_pe = int(ins_nifty_pe[1])
@@ -1112,14 +1126,20 @@ def get_option_tokens(nifty_bank="ALL"):
                 iLog(f"get_option_tokens(): ins_bank_ce={ins_bank_pe} tmp_ins_bank_ce={tmp_ins_bank_pe}")
 
                 if ins_bank_ce!=tmp_ins_bank_ce:
-                    alice.unsubscribe([ins_bank_ce])
+                    try:
+                        alice.unsubscribe([ins_bank_ce])
+                    except Exception as ex:
+                        iLog(f"get_option_tokens(): Exception during ins_bank_ce unsusbsribe. {ex}")
                     ltp_bank_ATM_CE=0
                     ins_bank_ce=tmp_ins_bank_ce
                     token_bank_ce = int(ins_bank_ce[1])
                     alice.subscribe([ins_bank_ce])
                 
                 if ins_bank_pe!=tmp_ins_bank_pe:
-                    alice.unsubscribe([ins_bank_pe])
+                    try:
+                        alice.unsubscribe([ins_bank_pe])
+                    except Exception as ex:
+                        iLog(f"get_option_tokens(): Exception during ins_bank_pe unsusbsribe. {ex}")
                     ltp_bank_ATM_PE=0
                     ins_bank_pe=tmp_ins_bank_pe
                     token_bank_pe = int(ins_bank_pe[1])
@@ -1269,15 +1289,18 @@ def get_buy_sell(df_data):
     if lst_super_trend[-1]=='up' and lst_super_trend[-2]=='down' and lst_super_trend[-3]=='down' and lst_super_trend[-4]=='down' and lst_super_trend[-5]=='down' and lst_super_trend[-6]=='down':
         if use_rsi:
             if df_data.RSI.iloc[-1] > rsi_buy_param and df_data.RSI.iloc[-1] < rsi_sell_param:
-                c1 = round((df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3]) / df_data.RSI.iloc[-3], 3 )
-                c2 = round((df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2]) / df_data.RSI.iloc[-2], 3 )
+                if use_rsi_roc:
+                    c1 = round((df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3]) / df_data.RSI.iloc[-3], 3 )
+                    c2 = round((df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2]) / df_data.RSI.iloc[-2], 3 )
 
-                iLog(f"{strMsgPrefix} ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                if c2 > c1: #percent Rate of change is increasing
-                    result = "B" 
+                    iLog(f"{strMsgPrefix} ST=up - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
+                    if c2 > c1: #percent Rate of change is increasing
+                        result = "B" 
+                    else:
+                        strMsg = f"{strMsgPrefix} ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
+                        iLog(strMsg,sendTeleMsg=True)
                 else:
-                    strMsg = f"{strMsgPrefix} ST=up - RSI Rate of change not as per trend. CE Buy not initiated."
-                    iLog(strMsg,sendTeleMsg=True)
+                    result = "B"
         else:
             iLog(f"{strMsgPrefix} Use of RSI disabled.",sendTeleMsg=True)
             result = "B" 
@@ -1286,16 +1309,19 @@ def get_buy_sell(df_data):
     elif lst_super_trend[-1]=='down' and lst_super_trend[-2]=='up' and lst_super_trend[-3]=='up' and lst_super_trend[-4]=='up' and lst_super_trend[-5]=='up' and lst_super_trend[-6]=='up':
         if use_rsi:
             if df_data.RSI.iloc[-1] < rsi_sell_param and df_data.RSI.iloc[-1] > rsi_buy_param:
-                c1 = round( ( df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3] ) / df_data.RSI.iloc[-3] , 3 )
-                c2 = round( ( df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2] ) / df_data.RSI.iloc[-2] , 3 )
-                
-                iLog(f"{strMsgPrefix} ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
-                
-                if c2 < c1: # percent Rate of change is decreasing
-                    result = "S"
+                if use_rsi_roc:
+                    c1 = round( ( df_data.RSI.iloc[-2] - df_data.RSI.iloc[-3] ) / df_data.RSI.iloc[-3] , 3 )
+                    c2 = round( ( df_data.RSI.iloc[-1] - df_data.RSI.iloc[-2] ) / df_data.RSI.iloc[-2] , 3 )
+                    
+                    iLog(f"{strMsgPrefix} ST=down - RSI Rate of change c2(latest)={c2},c1(previous)={c1}")
+                    
+                    if c2 < c1: # percent Rate of change is decreasing
+                        result = "S"
+                    else:
+                        strMsg = f"{strMsgPrefix} ST=down - RSI Rate of change not as per trend. PE Buy not inititated."
+                        iLog(strMsg,sendTeleMsg=True)
                 else:
-                    strMsg = f"{strMsgPrefix} ST=down - RSI Rate of change not as per trend. PE Buy not inititated."
-                    iLog(strMsg,sendTeleMsg=True)
+                    result = "S"
         else:
             iLog(f"{strMsgPrefix} Use of RSI disabled.",sendTeleMsg=True)
             result = "S"
