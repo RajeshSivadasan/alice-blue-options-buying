@@ -66,6 +66,7 @@ Below are the settings with default values and their descriptions for the .ini f
 <br>bank_tsl = 40
 <br>nifty_sqoff_time = 1515
 <br>use_rsi = 1
+<br>use_rsi_roc = 1 (Enable(1)/Disable(0) RSI Rate of change check if consistent as per trend)
 <br>rsi_period = 7
 <br>rsi_buy_param = 25
 <br>rsi_sell_param = 75
