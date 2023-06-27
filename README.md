@@ -6,10 +6,10 @@
 1. Copy all the three files in a same folder<br>
 2. Update the user credentials and preferences in the ab_options.ini<br>
 3. Install the below dependencies:<br>
-   pip3 install pya3<br>
-   pip3 install pycryptodome<br>
+     pip3 install pya3<br>
+     pip3 install pycryptodome<br>
 4. Run the algo using from the commandline using the below command:<br>
-   python3 ab_options.py
+     python3 ab_options.py
 <br>
 <br>
 Below are the settings with default values and their descriptions for the .ini file:<br>
