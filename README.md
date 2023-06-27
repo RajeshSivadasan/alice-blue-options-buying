@@ -5,12 +5,11 @@
 1. Copy all the three files in a same folder
 2. Update the user credentials and preferences in the ab_options.ini
 3. Install the below dependencies:<br>
-   ```pip3 install pya3```<br>
-   ```pip3 install pycryptodome```
-   
+   pip3 install pya3<br>
+   pip3 install pycryptodome<br>
 4. Run the algo using from the commandline using the below command:<br>
-```python3 ab_options.py```
-
+   python3 ab_options.py
+<br>
 Below are the settings with default values and their descriptions for the .ini file:
 <br>[tokens]
 <br>uid = XXXXXX  (Alice Blue UserID/Client ID)
