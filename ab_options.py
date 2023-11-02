@@ -36,7 +36,8 @@
 # v7.6.6 get_option_tokens() fetching older CE/PE. unsubscribed the tokens and reset the ltp's. Logged the current and previous instruments.
 # v7.6.7 get_option_tokens()  call to alice.unsubscribed() failed due to empty instrument. Implemented try
 # v7.6.8 Added use_rsi_roc (RSI Rate of Change) enable disable flag in get_buy_sell(). Logging of close_all_orders MIS squareoff orders 
-version = "7.6.8" 
+# v7.6.9 Added expiry_date_bn for banknifty expiry
+version = "7.6.9"
 
 # Last issue caused due to SL price set was above LTP i.e LTP came down drastically below the SL already. 
 # May be a health check of SLs are required time to time or MTM needs to actually handle it. This time MTM check also failed. 
@@ -213,8 +214,11 @@ bank_strike_pe_offset = float(cfg.get("realtime", "bank_strike_pe_offset"))
 tick_processing_sleep_secs = int(cfg.get("realtime", "tick_processing_sleep_secs"))
 
 
-#List of thursdays when its NSE holiday, hence reduce 1 day to get expiry date 
+#List of thursdays when its NSE holiday, hence reduce 1 day to get expiry date for nifty
 weekly_expiry_holiday_dates = cfg.get("info", "weekly_expiry_holiday_dates").split(",")
+
+#List of wednesdays when its NSE holiday, hence reduce 1 day to get expiry date for banknifty 
+weekly_expiry_holiday_dates_bn = cfg.get("info", "weekly_expiry_holiday_dates_bn").split(",")
 
 nifty_tgt1 = float(cfg.get("info", "nifty_tgt1"))   #30.0
 nifty_tgt2 = float(cfg.get("info", "nifty_tgt2"))   #60.0 medium target
@@ -1119,8 +1123,8 @@ def get_option_tokens(nifty_bank="ALL"):
 
                 # print(strike_ce,expiry_date.isoformat())
 
-                tmp_ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
-                tmp_ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
+                tmp_ins_bank_ce = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date_bn.isoformat(), is_fut=False, strike=strike_ce, is_CE = True)
+                tmp_ins_bank_pe = alice.get_instrument_for_fno(exch="NFO",symbol = 'BANKNIFTY', expiry_date=expiry_date_bn.isoformat(), is_fut=False, strike=strike_pe, is_CE = False)
 
                 iLog(f"get_option_tokens(): ins_bank_ce={ins_bank_ce} tmp_ins_bank_ce={tmp_ins_bank_ce}")
                 iLog(f"get_option_tokens(): ins_bank_ce={ins_bank_pe} tmp_ins_bank_ce={tmp_ins_bank_pe}")
@@ -1578,13 +1582,22 @@ ins_nifty = alice.get_instrument_by_symbol('INDICES', 'NIFTY 50')
 ins_bank = alice.get_instrument_by_symbol('INDICES', 'NIFTY BANK')
 
 
-# Get expiry date
+# Get expiry date nifty
 expiry_date = date.today() + timedelta( (3-date.today().weekday()) % 7 )
 # Reduce one day if thursday is a holiday
 if str(expiry_date) in weekly_expiry_holiday_dates :
     expiry_date = expiry_date - timedelta(days=1)
 
-iLog(f"expiry_date={expiry_date}")
+iLog(f"nifty expiry_date={expiry_date}")
+
+# Get expiry date banknifty
+expiry_date_bn = date.today() + timedelta( (2-date.today().weekday()) % 7 )
+# Reduce one day if thursday is a holiday
+if str(expiry_date_bn) in weekly_expiry_holiday_dates_bn :
+    expiry_date_bn = expiry_date_bn - timedelta(days=1)
+
+iLog(f"banknifty expiry_date_bn={expiry_date_bn}")
+
 
 
 # Temp assignment for CE/PE instrument tokens
